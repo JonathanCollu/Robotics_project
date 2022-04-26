@@ -1,3 +1,0 @@
-numpy==1.20.3
-opencv_python==4.5.5.62
-picamera==1.13
