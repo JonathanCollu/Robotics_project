@@ -1,9 +1,6 @@
-"""
-"""
-
 from __future__ import print_function
 from src.env    import VrepEnvironment
-from src.agents import Pioneer
+from src.agents import PiCarX
 from src.disp   import Display
 import settings
 import time, argparse
@@ -51,38 +48,11 @@ from numpy import pi
                (200 by default, can be changed in settings.py) Note: unreliable as SLAM is not solved here.
 """
 
-###########
-###########
-
-def loop_(agent, started):
-    def rotate_and_move(ls, rs, fs, rt, mt):
-        '''
-            rotates the robot in the direction of the negative speed
-            between ls and rs for rt seconds. Then moves forward with
-            speed ss for mt seconds
-            Parameters:
-                ls: left speed
-                rs: right speed
-                fs: forward speed
-                rt: rotation time
-                mt: moving (forward) time
-        '''
-        agent.change_velocity([ls, rs])
-        time.sleep(rt)
-        agent.change_velocity([fs, fs])
-        time.sleep(mt)
-
-    if not started: rotate_and_move(pi, -pi, 5, 1.5, 7)
-    left_speed, right_speed = tuple(agent.current_speed_API())
-    if (round(left_speed), round(right_speed)) == (0, 0): rotate_and_move(-pi, pi, 3, 1, 0.5)
-    elif agent.read_lidars()[62] > 2 : rotate_and_move(pi, -pi, 3, 1.5, 2)
-
 def loop(agent):
     agent.read_image()
+    agent.change_velocity([1, 1])
+    time.sleep(10)
     exit()
-    
-##########
-##########
 
 if __name__ == "__main__":
     plt.ion()
@@ -90,7 +60,6 @@ if __name__ == "__main__":
     environment = VrepEnvironment(settings.SCENES + '/environment.ttt')  # Open the file containing our scene (robot and its environment)
     environment.connect()        # Connect python to the simulator's remote API
     agent   = PiCarX(environment)
-    display = Display(agent, False) 
 
     print('\nDemonstration of Simultaneous Localization and Mapping using CoppeliaSim robot simulation software. \nPress "CTRL+C" to exit.\n')
     start = time.time()
@@ -101,13 +70,10 @@ if __name__ == "__main__":
 
     try:    
         while step < settings.simulation_steps and not done:
-            display.update()                     # Update the SLAM display
-            
-            loop(agent, step != 0)                           # Control loop
+            loop(agent)  # Control loop
             step += 1
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()-start))
-        
-    display.close()
+
     environment.stop_simulation()
     environment.disconnect()

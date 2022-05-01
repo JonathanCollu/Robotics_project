@@ -20,7 +20,6 @@ class Pioneer(object):
     Methods for controlling Pioneer robot in V-REP, that has a SICK_TiM310 sensor attached
     """
     def __init__(self, env):
-        
         self.env = env
         
         # Lidar
@@ -60,7 +59,6 @@ class Pioneer(object):
         stream2 = [self.env.get_joint_angle(x, 'streaming') for x in self._motor_handles]
         stream3 = [self.env.get_joint_velocity(x, 'streaming') for x in self._motor_handles]
         
-
     def current_speed(self):
         """
         Current angular velocity of the wheel motors in rad/s
@@ -142,30 +140,20 @@ class Pioneer(object):
         self.pos[1] = int(y / float(settings.map_size * settings.agent_scale_factor) * settings.image_size)
         self.position_history.append(tuple(self.pos)) # Append the position deque with a tuple of (x,y)
         self.theta = theta
-        
+
+
 class PiCarX(object):
-    
     def __init__(self, env):
-        
         self.env = env
         
-        # Motors, positions and angles
-        self.cam_handle = self.env.get_handle('Cam')
-        self._motor_names   = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
+        # motors, positions and angles
+        self.cam_handle = self.env.get_handle('Vision_sensor')
+        self._motor_names = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
         self._motor_handles = [self.env.get_handle(x) for x in self._motor_names]
         self.angular_velocity = np.zeros(2)
         self.angles = np.zeros(2)
-        self.pos    = [0, 0]
-        self.change_velocity([0, 0])
-        self.start_streaming()
-
-    def start_streaming(self):
-        """
-        Start streaming the _lidar data and joint angles to reduce overhead
-        """
-        stream1 = [self.env.get_joint_angle(x, 'streaming') for x in self._motor_handles]
-        stream2 = [self.env.get_joint_velocity(x, 'streaming') for x in self._motor_handles]
-        
+        self.pos = [0, 0]
+        self.change_velocity([2, 2])
 
     def current_speed(self):
         """
@@ -175,7 +163,7 @@ class PiCarX(object):
         self.angles = np.array([self.env.get_joint_angle(x, 'buffer') for x in self._motor_handles])
         angular_velocity = self.angles - prev_angles
         for i, v in enumerate(angular_velocity):
-            # In case radians reset to 0
+            # in case radians reset to 0
             if v < -np.pi:
                 angular_velocity[i] =  np.pi*2 + angular_velocity[i]
             if v > np.pi:
@@ -198,7 +186,6 @@ class PiCarX(object):
         else:
             [self.env.set_target_velocity(self._motor_handles[i], velocities[i]) for i in range(2)]
     
-    def read_image(self, mode='buffer'):
+    def read_image(self, mode='blocking'):
         res, resolution, image = self.env.get_vision_image(self.cam_handle, mode)
         print(res, resolution, image, sep='\n')
-        
