@@ -49,14 +49,17 @@ from numpy import pi
 """
 
 def loop(agent):
-    agent.read_image()
-    agent.change_velocity([1, 1])
+    #agent.read_image()
+    print(agent.current_speed_API())
+    agent.change_velocity([10, 10])
+    print(agent.current_speed_API())
     time.sleep(10)
     exit()
 
 if __name__ == "__main__":
     plt.ion()
     # Initialize and start the environment
+    print(settings.SCENES)
     environment = VrepEnvironment(settings.SCENES + '/environment.ttt')  # Open the file containing our scene (robot and its environment)
     environment.connect()        # Connect python to the simulator's remote API
     agent   = PiCarX(environment)

@@ -145,6 +145,7 @@ class Pioneer(object):
 class PiCarX(object):
     def __init__(self, env):
         self.env = env
+        print('env', self.env)
         
         # motors, positions and angles
         self.cam_handle = self.env.get_handle('Vision_sensor')
@@ -154,6 +155,14 @@ class PiCarX(object):
         self.angles = np.zeros(2)
         self.pos = [0, 0]
         self.change_velocity([2, 2])
+        self.start_streaming()
+        
+    def start_streaming(self):
+        """
+        Start streaming the _lidar data and joint angles to reduce overhead
+        """
+        stream1 = [self.env.get_joint_angle(x, 'streaming') for x in self._motor_handles]
+        stream2 = [self.env.get_joint_velocity(x, 'streaming') for x in self._motor_handles]
 
     def current_speed(self):
         """
@@ -179,12 +188,16 @@ class PiCarX(object):
         """
         Change the current angular velocity of the robot's wheels in rad/s
         """
+        print('env',self.env)
+        print('velocities', velocities)
         if target == 'left':
             self.env.set_target_velocity(self._motor_handles[0], velocities)
         if target == 'right':
             self.env.set_target_velocity(self._motor_handles[1], velocities)
         else:
+            print('change')
             [self.env.set_target_velocity(self._motor_handles[i], velocities[i]) for i in range(2)]
+        print('velocity', self.angular_velocity)
     
     def read_image(self, mode='blocking'):
         res, resolution, image = self.env.get_vision_image(self.cam_handle, mode)
