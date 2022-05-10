@@ -5,7 +5,8 @@ from src.disp   import Display
 import settings
 import time, argparse
 import matplotlib.pyplot as plt
-from numpy import pi
+from PIL import Image
+import numpy as np
 
 """ Motors:
 
@@ -48,13 +49,13 @@ from numpy import pi
                (200 by default, can be changed in settings.py) Note: unreliable as SLAM is not solved here.
 """
 
-def loop(agent):
-    #agent.read_image()
-    print(agent.current_speed_API())
-    agent.change_velocity([10, 10])
-    print(agent.current_speed_API())
-    time.sleep(10)
-    exit()
+def loop(agent, i):
+    img, res = agent.read_image()
+    img = np.array(img, dtype=np.uint8).reshape([res[1], res[0], 3])
+    img = np.flip(img, axis=0)
+    img = Image.fromarray(img)
+    img.save('images/img' +str(i -1) + '.png')
+    agent.change_velocity([2, 2])
 
 if __name__ == "__main__":
     plt.ion()
@@ -73,7 +74,7 @@ if __name__ == "__main__":
 
     try:    
         while step < settings.simulation_steps and not done:
-            loop(agent)  # Control loop
+            loop(agent, step)  # Control loop
             step += 1
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()-start))
