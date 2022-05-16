@@ -4,9 +4,8 @@ import numpy as np
 import torch
 import cv2
 
-ball_mask = cv2.imread("ball_mask.png", cv2.IMREAD_GRAYSCALE)
-border_mask = cv2.imread("border_mask.png", cv2.IMREAD_GRAYSCALE)
-mask = np.stack([ball_mask, border_mask])
+src_img = cv2.imread('img-1.png')
+mask = interpret_image("green", "red", src_img)
 print(mask.shape)
 
 policy = PolicyNet()
