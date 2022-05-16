@@ -12,11 +12,11 @@ class PolicyNet(nn.Module):
         other representing the trajectory angle in [0, 180] as a
         classification problem using the softmax function.
     """
-    def __init__(self, input_size):
+    def __init__(self):
         super(PolicyNet, self).__init__()
 
         self.hidden_layers = nn.Sequential(
-            nn.AvgPool2d(6, 6),
+            nn.AvgPool2d(12, 12),
             nn.Flatten(),
             nn.Linear(2400, 256),
             nn.Tanh()
@@ -28,11 +28,11 @@ class PolicyNet(nn.Module):
         )
 
         self.angle_head = nn.Sequential(
-            nn.Linear(256, 180),
+            nn.Linear(256, 181),
             nn.Softmax(dim=1)
         )
 
-    def forward(self, x, device):
+    def forward(self, x, device="cpu"):
         x = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
         x = self.hidden_layers(x)
         movement = self.movement_head(x)
