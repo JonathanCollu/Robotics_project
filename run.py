@@ -49,20 +49,17 @@ import torch
                (200 by default, can be changed in settings.py) Note: unreliable as SLAM is not solved here.
 """
 
-def loop(agent):
-    agent.train(10, 2, 5, 0.99)
-
 if __name__ == "__main__":
     plt.ion()
     model = PolicyNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     agent   = PiCarX(model, optimizer)
 
-    agent.reset_env()
-    time.sleep(1)
+    agent.env.start_simulation()
+    agent.change_velocity([0, 0])
 
-    try:    
-        loop(agent)  # Control loop
+    try:
+        agent.train(1, 2, 5, 0.99)
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 

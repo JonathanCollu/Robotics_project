@@ -53,40 +53,48 @@ class Reinforce():
     
     def select_action(self, s):
         # get the probability distribution of the actions
-        movement, angles = self.agent.policy.forward(s)
-        # sample action from distribution
-        angles = Categorical(angles)
-        action = angles.sample()
-        #return action and actions distribution
-        return torch.round(movement.detach()).item(), action, angles
+        movement_prob, angles_dist = self.agent.policy.forward(s)
+        # sample movement=1 with prob=movement_prob
+        movement = torch.bernoulli(movement_prob.detach()).type(torch.int64)
+        movement_dist = (movement_prob, 1-movement_prob)
+        # sample angle from angles distribution
+        angles_dist = Categorical(angles_dist)
+        angle = angles_dist.sample()
+        return movement, movement_dist, angle, angles_dist
 
     def sample_trace(self):
         reward = 0
         trace = []
         for _ in range(self.T):
             s = self.agent.detect_objects()
-            m, a, a_dist = self.select_action(s)
-            r, done = self.agent.move(m, a.item())
-            trace.append((s, a, r, a_dist))
+            m, m_dist, a, a_dist = self.select_action(s)
+            r, done = self.agent.move(m.item(), a.item())
+            trace.append((s, (m, a), r, (m_dist, a_dist)))
             reward += r
-            if done: break
+            if done:
+                self.agent.reset_env()
+                break
         trace.append((s, None, None, None))
+        self.agent.change_velocity((0, 0))
         return trace, reward
 
     def epoch(self):
-        loss = torch.tensor([0], dtype=torch.float64) 
+        loss = torch.tensor([0], dtype=torch.float32) 
         reward = 0
         for _ in range(self.M):
-            self.agent.reset_env()
+            # if _ == 1:  # for testing the reset env after done=True
+            #     self.agent.reset_env()
             h0, reward_t = self.sample_trace()
             reward += reward_t
             R = 0
             # len-2 reason: -1 for having 0..len-1 and -1 for skipping last state
             for t in range(len(h0) - 2, -1, -1):
                 R = h0[t][2] + self.gamma * R
-                loss += R * -h0[t][3].log_prob(h0[t][1])
+                loss_m = -torch.log(h0[t][3][0][h0[t][1][0]])[0]
+                loss_a = -h0[t][3][1].log_prob(h0[t][1][1])
+                loss += R * (loss_m + loss_a)
                 if self.entropy_factor is not None:
-                    loss += self.entropy_factor * h0[t][3].entropy()
+                    loss += self.entropy_factor * (h0[t][3][0].entropy() + h0[t][3][1].entropy())
         loss /= self.M
         reward /= self.M
         self.train(loss)
@@ -102,4 +110,3 @@ class Reinforce():
         #torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         # update weigths
         self.agent.optimizer.step()
-   

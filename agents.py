@@ -73,18 +73,17 @@ class PiCarX(object):
 
     def detect_objects(self):
         img, res = self.read_image()
-        
+
         try: img = np.array(img, dtype=np.uint8).reshape([res[1], res[0], 3])
         except: 
-            print(img,res, sep='\n')
+            print(img, res, sep="\n")
             exit()
         img = np.flip(img, axis=0)
         
-        mask = interpret_image("green", "red", img)
-        image = Image.fromarray(img)
-        image.save('images/palle.png')
-        #print(image.shape)
-        return mask
+        # image = Image.fromarray(img)
+        # image.save('images/screenshot.png')
+
+        return interpret_image("green", "red", img)
     
     def save_image(self, image, resolution, options, filename, quality=-1):
         self.env.save_image(image, resolution, options, filename, quality)
@@ -93,24 +92,25 @@ class PiCarX(object):
         try: self.env.stop_simulation()
         except: pass
         self.env.start_simulation()
-
-        
     
     def move(self, movement, angle):
-        # this function moves the robot in env and returns the reward achieved
-        # returns also done
-        speed = math.radians(angle)
-        if np.random.choice([True, False], 1)[0]:
-            if movement == 1:
-                self.change_velocity([-speed, speed])
-            else:
-                self.change_velocity([-speed, 0])
+        # move the robot in env and return the collected reward
+        if not movement:
+            base = (0, 0)
         else:
-            if movement == 1:
-                self.change_velocity([speed, -speed])
-            else:
-                self.change_velocity([0, -speed])
+            base = (1.2, 1.2)
+        max_diff = 1.7
+        diff = abs(angle - 90) / 90 * max_diff
+        if angle > 90:
+            diff = (diff, 0)
+        elif angle < 90:
+            diff = (0, diff)
+        else:
+            diff = (0, 0)
+        v = (base[0] + diff[0], base[1] + diff[1])
+        self.change_velocity(v)
         time.sleep(1)
+        self.change_velocity(base)
         # TODO: implement reward system
         return 0, False
     
@@ -133,3 +133,22 @@ class PiCarX(object):
         reinforce = Reinforce(self, epochs, M, T, gamma, ef, run_name)
         rewards = reinforce()
         return rewards
+
+        # testing for movement calibration
+        # # base = (1.2, 1.2)
+        # base = (0, 0)
+        # angle = 0
+        # for i in range(1):
+        #     print(i)
+        #     max_diff = 1.7
+        #     diff = abs(angle - 90) / 90 * max_diff
+        #     print(diff)
+        #     if angle > 90:
+        #         diff = (diff, 0)
+        #     elif angle < 90:
+        #         diff = (0, diff)
+        #     else:
+        #         diff = (0, 0)
+        #     v = [base[0] + diff[0], base[1] + diff[1]]
+        #     self.change_velocity(v)
+        #     time.sleep(1)
