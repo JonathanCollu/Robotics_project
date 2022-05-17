@@ -1,4 +1,6 @@
 import time
+
+from matplotlib import image
 import torch
 import math
 import numpy as np
@@ -7,6 +9,7 @@ import matplotlib.pyplot as plt
 from src.color_detection import interpret_image
 from src.Reinforce import Reinforce
 from src.env import VrepEnvironment
+from src.libs.sim.simConst import sim_boolparam_display_enabled
 
 import sys, os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
@@ -17,11 +20,12 @@ if settings.draw_dist:
     plt.figure()
 
 class PiCarX(object):
-    def __init__(self, policy):
+    def __init__(self, policy, optimizer):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
         self.env.connect() # Connect python to the simulator's remote API
         self.env.start_simulation()
         self.policy = policy
+        self.optimizer =optimizer
         
         # motors, positions and angles
         self.cam_handle = self.env.get_handle('Vision_sensor')
@@ -69,29 +73,27 @@ class PiCarX(object):
 
     def detect_objects(self):
         img, res = self.read_image()
-        img = np.array(img, dtype=np.uint8).reshape([res[1], res[0], 3])
+        
+        try: img = np.array(img, dtype=np.uint8).reshape([res[1], res[0], 3])
+        except: 
+            print(img,res, sep='\n')
+            exit()
         img = np.flip(img, axis=0)
         
         mask = interpret_image("green", "red", img)
-        #image.save('images/img_dec.png')
+        image = Image.fromarray(img)
+        image.save('images/palle.png')
         #print(image.shape)
         return mask
     
     def save_image(self, image, resolution, options, filename, quality=-1):
         self.env.save_image(image, resolution, options, filename, quality)
     
-    def reset_env(self, use_API=True):
-        if use_API:
-            try:
-                self.env.stop_simulation()
-                self.env.disconnect()
-            except: pass
-            self.env.connect() # Connect python to the simulator's remote API
-            self.env.start_simulation()
-        else:
-            try: self.env.stop_simulation()
-            except: pass
-            self.env.start_simulation()
+    def reset_env(self):
+        try: self.env.stop_simulation()
+        except: pass
+        self.env.start_simulation()
+
         
     
     def move(self, movement, angle):
@@ -127,6 +129,7 @@ class PiCarX(object):
         return np.mean(r_ep)
 
     def train(self, epochs, M, T, gamma, ef=None, run_name=None):
+        print('Starting training...')
         reinforce = Reinforce(self, epochs, M, T, gamma, ef, run_name)
         rewards = reinforce()
         return rewards

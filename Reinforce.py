@@ -6,9 +6,7 @@ from torch.distributions import Categorical
 
 class Reinforce():
     """ Parameters:
-            - env : Environment to train our model
-            - model : differentiable parametrized policy (model in pytorch)
-            - optimzer : policy network optimization algorithm (torch optimizer)
+            - agent : robot to be trained
             - epochs : number of epochs 
             - M : number of traces per epoch
             - T : trace length
@@ -69,7 +67,7 @@ class Reinforce():
             s = self.agent.detect_objects()
             m, a, a_dist = self.select_action(s)
             r, done = self.agent.move(m, a.item())
-            trace.append((s, m, a, r, a_dist))
+            trace.append((s, a, r, a_dist))
             reward += r
             if done: break
         trace.append((s, None, None, None))
@@ -96,12 +94,12 @@ class Reinforce():
 
     def train(self, loss):
         # set model to train
-        self.model.train()
+        self.agent.policy.train()
         # compute gradient of loss
-        self.optimizer.zero_grad()
+        self.agent.optimizer.zero_grad()
         loss.backward()
         # clip gradient
         #torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         # update weigths
-        self.optimizer.step()
+        self.agent.optimizer.step()
    

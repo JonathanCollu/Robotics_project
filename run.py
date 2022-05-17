@@ -5,6 +5,7 @@ from src.Model   import PolicyNet
 import settings
 import time
 import matplotlib.pyplot as plt
+import torch
 
 
 """ Motors:
@@ -49,12 +50,13 @@ import matplotlib.pyplot as plt
 """
 
 def loop(agent):
-    agent.train(10, 2, 500, 0.99)
+    agent.train(10, 2, 5, 0.99)
 
 if __name__ == "__main__":
     plt.ion()
     model = PolicyNet()
-    agent   = PiCarX(model)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    agent   = PiCarX(model, optimizer)
 
     agent.reset_env()
     time.sleep(1)
@@ -65,5 +67,4 @@ if __name__ == "__main__":
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 
     agent.env.stop_simulation()
-    try: agent.env.disconnect()
-    except: pass
+    agent.env.disconnect()
