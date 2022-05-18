@@ -1,8 +1,6 @@
 import time
 
-from matplotlib import image
 import torch
-import math
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -20,19 +18,20 @@ if settings.draw_dist:
     plt.figure()
 
 class PiCarX(object):
-    def __init__(self, policy, optimizer):
+    def __init__(self, policy, optimizer, spheres_num):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
         self.start_sim(connect=True)
         self.policy = policy
         self.optimizer = optimizer
-        
+        self.spheres_num = spheres_num
+        self.sphere_inside = [True for _ in range(spheres_num)]
+
         # motors, positions and angles
         self.cam_handle = self.env.get_handle('Vision_sensor')
         self._motor_names = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
         self._motor_handles = [self.env.get_handle(x) for x in self._motor_names]
         self.angular_velocity = np.zeros(2)
         self.angles = np.zeros(2)
-        self.pos = [0, 0]
         
     def current_speed(self):
         """
@@ -102,8 +101,33 @@ class PiCarX(object):
         try: self.stop_sim(connect)
         except: pass
         self.start_sim(connect)
-    
-    def move(self, movement, angle):
+
+    def is_in_area(self, object_name):
+        obj_handle = self.env.get_handle(object_name)
+        pos = self.env.get_object_position(obj_handle)
+        if pos[0] < -2 or pos[0] > 2:
+            return False
+        if pos[1] < -2 or pos[1] > 2:
+            return False
+        return True
+
+    def get_rewards(self):
+        r = 0
+        # add spheres reward
+        success = False
+        for i in range(self.spheres_num):
+            if not self.is_in_area(f"Sphere_{i}"):
+                if self.sphere_inside[i]:
+                    success = True
+                    self.sphere_inside[i] = False
+                    r += 10
+        if not success:
+            r -= 1
+        # TODO implement (smaller or periodic) negative rewards
+        # when agent is moving the ball (instead of the current -1)
+        return r
+
+    def move(self, movement, angle, duration=1):
         # move the robot in env and return the collected reward
         if not movement:
             base = (0, 0)
@@ -119,10 +143,24 @@ class PiCarX(object):
             diff = (0, 0)
         v = (base[0] + diff[0], base[1] + diff[1])
         self.change_velocity(v)
-        time.sleep(1)
+        # check for position outside the area during movement
+        # if outside, go back to the last position
+        start_time = time.time()
+        while True:
+            if not self.is_in_area("Pioneer_p3dx"):
+                print("OUTSIDE")
+                self.change_velocity((-v[0], -v[1]))
+                time.sleep(time.time()-start_time)
+                break
+            if time.time() - start_time >= duration:
+                break
+            time.sleep(0.05)
         self.change_velocity(base)
-        # TODO: implement reward system
-        return 0, False
+        # check for new rewards
+        r = self.get_rewards()
+        # check if done
+        done = not any(self.sphere_inside)
+        return r, done
     
     def act(self, trials):
         r_ep = [0]*trials
