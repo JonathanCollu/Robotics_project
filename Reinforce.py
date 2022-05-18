@@ -1,5 +1,6 @@
 import os
 from pickle import NONE
+from matplotlib.pyplot import connect
 import torch
 import numpy as np
 from torch.distributions import Categorical
@@ -82,8 +83,8 @@ class Reinforce():
         loss = torch.tensor([0], dtype=torch.float32) 
         reward = 0
         for _ in range(self.M):
-            # if _ == 1:  # for testing the reset env after done=True
-            #     self.agent.reset_env()
+            if _ in [1,2]:  # for testing the reset env after done=True
+                self.agent.reset_env()
             h0, reward_t = self.sample_trace()
             reward += reward_t
             R = 0

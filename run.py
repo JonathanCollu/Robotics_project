@@ -53,15 +53,11 @@ if __name__ == "__main__":
     plt.ion()
     model = PolicyNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    agent   = PiCarX(model, optimizer)
-
-    agent.env.start_simulation()
-    agent.change_velocity([0, 0])
+    agent = PiCarX(model, optimizer)
 
     try:
-        agent.train(1, 2, 5, 0.99)
+        agent.train(1, 3, 5, 0.99)
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 
-    agent.env.stop_simulation()
-    agent.env.disconnect()
+    agent.stop_sim(disconnect=True)

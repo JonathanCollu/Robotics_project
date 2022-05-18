@@ -22,10 +22,9 @@ if settings.draw_dist:
 class PiCarX(object):
     def __init__(self, policy, optimizer):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
-        self.env.connect() # Connect python to the simulator's remote API
-        self.env.start_simulation()
+        self.start_sim(connect=True)
         self.policy = policy
-        self.optimizer =optimizer
+        self.optimizer = optimizer
         
         # motors, positions and angles
         self.cam_handle = self.env.get_handle('Vision_sensor')
@@ -34,7 +33,6 @@ class PiCarX(object):
         self.angular_velocity = np.zeros(2)
         self.angles = np.zeros(2)
         self.pos = [0, 0]
-        self.change_velocity([2, 2])
         
     def current_speed(self):
         """
@@ -88,10 +86,22 @@ class PiCarX(object):
     def save_image(self, image, resolution, options, filename, quality=-1):
         self.env.save_image(image, resolution, options, filename, quality)
     
-    def reset_env(self):
-        try: self.env.stop_simulation()
-        except: pass
+    def start_sim(self, connect):
+        if connect:
+            self.env.connect()
         self.env.start_simulation()
+        # we don't know why, but it is required twice
+        self.env.start_simulation()
+
+    def stop_sim(self, disconnect):
+        self.env.stop_simulation()
+        if disconnect:
+            self.env.disconnect()
+
+    def reset_env(self, connect=False):
+        try: self.stop_sim(connect)
+        except: pass
+        self.start_sim(connect)
     
     def move(self, movement, angle):
         # move the robot in env and return the collected reward
@@ -135,7 +145,7 @@ class PiCarX(object):
         return rewards
 
         # testing for movement calibration
-        # # base = (1.2, 1.2)
+        # base = (1.2, 1.2)
         # base = (0, 0)
         # angle = 0
         # for i in range(1):
