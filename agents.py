@@ -24,6 +24,8 @@ class PiCarX(object):
         self.env.connect()
         self.policy = policy
         self.optimizer = optimizer
+        self.area_min = (-2, -2)
+        self.area_max = (2, 2)
         self.cuboids_handles, self.cuboids = [], []
         for i in range(cuboids_num):
             self.cuboids_handles.append(self.env.get_handle(f"Cuboid_{i}"))
@@ -111,10 +113,18 @@ class PiCarX(object):
         except: pass
         self.start_sim(connect)
 
+    def min_border_dist(self, point):
+        """ minimum distance between a point and the 4 borders
+        """
+        return min(self.area_max[0]-point[0],  # right border
+                   self.area_max[1]-point[1],  # top border
+                   point[0]-self.area_min[0],  # left border
+                   point[1]-self.area_min[1])  # bottom border
+
     def is_in_area(self, pos):
-        if pos[0] < -2 or pos[0] > 2:
+        if pos[0] < self.area_min[0] or pos[0] > self.area_max[0]:
             return False
-        if pos[1] < -2 or pos[1] > 2:
+        if pos[1] < self.area_min[1] or pos[1] > self.area_max[1]:
             return False
         return True
 
@@ -135,13 +145,20 @@ class PiCarX(object):
                 if not self.is_in_area(pos):
                     r += 10
                 else:
-                    r += 0.5
+                    movement_gain = self.min_border_dist(self.cuboids[i]) - self.min_border_dist(pos)
+                    # reward between 0 and 1 based on the min distance of the cube to the borders
+                    if movement_gain > 0:
+                        r += 1 - (self.min_border_dist(pos) / ((self.area_max[0]-self.area_min[0])/2))
+                    elif movement_gain < 0:
+                        r -= self.min_border_dist(pos) / ((self.area_max[0]-self.area_min[0])/2)
+                    else:
+                        r += 0
                     # print("cuboid", i, "changed")
                 # update stored cuboid position
                 self.cuboids[i] = pos
 
         if not success:
-            r -= 1
+            r -= 0.1
         return r
 
     def move(self, movement, angle, duration=1):
