@@ -75,7 +75,7 @@ class Reinforce():
         for _ in range(self.T):
             s = self.agent.detect_objects()
             m, m_dist, a, a_dist = self.select_action(s)
-            r, done = self.agent.move(m.item(), a.item())
+            r, done = self.agent.move(m.item(), a.item(), s)
             trace.append((s, (m, a), r, (m_dist, a_dist)))
             reward += r
             if done:

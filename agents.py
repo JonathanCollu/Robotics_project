@@ -26,12 +26,11 @@ class PiCarX(object):
         self.optimizer = optimizer
         self.area_min = (-2, -2)
         self.area_max = (2, 2)
-        self.cuboids_handles, self.cuboids = [], []
+        self.cuboids_num = cuboids_num
+        self.cuboids_handles = []
         for i in range(cuboids_num):
             self.cuboids_handles.append(self.env.get_handle(f"Cuboid_{i}"))
-            pos = self.env.get_object_position(self.cuboids_handles[-1])
-            pos = [round(pos[0], 2), round(pos[1], 2)]
-            self.cuboids.append(pos)
+        self.set_cuboids_pos()
 
         # motors, positions and angles
         self.car_handle = self.env.get_handle("Pioneer_p3dx")
@@ -42,7 +41,14 @@ class PiCarX(object):
         self.angles = np.zeros(2)
         self.forward_vel = (1.2, 1.2)
         self.stuck_steps = 0
-        
+
+    def set_cuboids_pos(self):
+        self.cuboids = []
+        for cuboid_handle in self.cuboids_handles:
+            pos = self.env.get_object_position(cuboid_handle)
+            pos = [round(pos[0], 2), round(pos[1], 2)]
+            self.cuboids.append(pos)
+
     def current_speed(self):
         """
         Current angular velocity of the wheel motors in rad/s
@@ -112,6 +118,7 @@ class PiCarX(object):
         try: self.stop_sim(connect)
         except: pass
         self.start_sim(connect)
+        self.set_cuboids_pos()
 
     def min_border_dist(self, point):
         """ minimum distance between a point and the 4 borders
@@ -128,7 +135,7 @@ class PiCarX(object):
             return False
         return True
 
-    def get_reward(self):
+    def get_reward(self, cuboids_mask):
         r = 0
         # add cuboids reward
         success = False
@@ -156,12 +163,12 @@ class PiCarX(object):
                     # print("cuboid", i, "changed")
                 # update stored cuboid position
                 self.cuboids[i] = pos
-
+        
         if not success:
-            r -= 0.1
+            r -= 0.1 - np.sum(cuboids_mask) / cuboids_mask.size
         return r
 
-    def move(self, movement, angle, duration=1):
+    def move(self, movement, angle, s, duration=1):
         # move the robot in env and return the collected reward
         if not movement:
             # to avoid having the robot stuck, the "stay still" action
@@ -214,9 +221,8 @@ class PiCarX(object):
                 self.change_velocity((diff, 0))
                 time.sleep(1)
         self.change_velocity((0, 0))
-        
         # check for new rewards
-        r = self.get_reward()
+        r = self.get_reward(s[0])
         # check if done
         done = not any(self.cuboids)
         return r, done

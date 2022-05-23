@@ -52,11 +52,13 @@ import torch
 if __name__ == "__main__":
     plt.ion()
     model = PolicyNet()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    # state_dict = torch.load(f"exp_results/1_5_99_weights.pt")
+    # model.load_state_dict(state_dict)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
     agent = PiCarX(model, optimizer, 10)
 
     try:
-        agent.train(100, 1, 5, 0.99, run_name="10_1_5")
+        agent.train(100, 2, 3, 0.99, ef=None, run_name="relu_2_3")
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 
