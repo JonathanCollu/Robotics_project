@@ -47,10 +47,9 @@ class Reinforce():
                     os.remove(f"{self.run_name}_{epoch-saving_delay}_weights.pt")
                 # save model
                 torch.save(self.agent.policy.state_dict(), f"exp_results/{self.run_name}_{epoch}_weights.pt")
-        
-        if self.run_name is not None:
-            # save losses and rewards
-            np.save(self.run_name, np.array([losses, rewards]))
+                # save losses and rewards
+                np.save("exp_results/"+self.run_name, np.array([losses, rewards]))
+
         return rewards
     
     def select_action(self, s):
