@@ -1,3 +1,4 @@
+from PIL import Image
 import cv2
 #from picamera.array import PiRGBArray
 #from picamera import PiCamera
@@ -9,7 +10,8 @@ np.set_printoptions(threshold=sys.maxsize)
 
 def color_detect(img, color_name):
     # here is the range of H in the HSV color space represented by the color
-    color_dict = {'red':[0,4],'orange':[5,18],'yellow':[22,37],'green':[42,85],'blue':[92,110],'purple':[115,165],'red_2':[165,180]}
+    # color_dict = {'red':[0,4],'orange':[5,18],'yellow':[22,37],'green':[42,85],'blue':[92,110],'purple':[115,165],'red_2':[165,180]}
+    color_dict = {'blue':[0,4],'orange':[5,18],'yellow':[22,37],'green':[42,85],'wrong_blue':[92,110],'purple':[115,165],'red_2':[165,180]}
 
     # define a 5×5 convolution kernel with element values of all 1.
     kernel_5 = np.ones((5,5), np.uint8) 
@@ -31,9 +33,9 @@ def color_detect(img, color_name):
     
     # inRange()：Make the ones between lower/upper white, and the rest black
     mask = cv2.inRange(hsv,np.array([min(color_dict[color_type]), 60, 60]), np.array([max(color_dict[color_type]), 255, 255]))            
-    if color_type == 'red':
-            mask_2 = cv2.inRange(hsv, (color_dict['red_2'][0],0,0), (color_dict['red_2'][1],255,255))
-            mask = cv2.bitwise_or(mask, mask_2)
+    # if color_type == 'red':
+    #         mask_2 = cv2.inRange(hsv, (color_dict['red_2'][0],0,0), (color_dict['red_2'][1],255,255))
+    #         mask = cv2.bitwise_or(mask, mask_2)
 
     morphologyEx_img = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_5,iterations=1) # perform an open operation on the image
 
@@ -77,6 +79,7 @@ def interpret_image(ball_color, border_color, image):
     _, border_mask, _ = color_detect(image, border_color)
     ball_mask = np.round_(ball_mask / 255)
     border_mask = np.round_(border_mask / 255)
+    Image.fromarray(np.array(border_mask*255, dtype=np.uint8)).save("images/border_mask.png")
     mask = np.stack([ball_mask, border_mask])
     # composite_image = ball_mask + 2 * border_mask
     return mask

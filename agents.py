@@ -18,20 +18,26 @@ if settings.draw_dist:
     plt.figure()
 
 class PiCarX(object):
-    def __init__(self, policy, optimizer, spheres_num):
+    def __init__(self, policy, optimizer, cuboids_num):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
-        self.start_sim(connect=True)
+        # self.start_sim(connect=True)
+        self.env.connect()
         self.policy = policy
         self.optimizer = optimizer
-        self.spheres_num = spheres_num
-        self.sphere_inside = [True for _ in range(spheres_num)]
-
+        self.cuboids_handles, self.cuboids = [], []
+        for i in range(cuboids_num):
+            self.cuboids_handles.append(self.env.get_handle(f"Cuboid_{i}"))
+            pos = self.env.get_object_position(self.cuboids_handles[-1])
+            pos = [round(pos[0], 2), round(pos[1], 2)]
+            self.cuboids.append(pos)
         # motors, positions and angles
+        self.car_handle = self.env.get_handle("Pioneer_p3dx")
         self.cam_handle = self.env.get_handle('Vision_sensor')
         self._motor_names = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
         self._motor_handles = [self.env.get_handle(x) for x in self._motor_names]
         self.angular_velocity = np.zeros(2)
         self.angles = np.zeros(2)
+        self.forward_vel = (1.2, 1.2)
         
     def current_speed(self):
         """
@@ -73,14 +79,14 @@ class PiCarX(object):
 
         try: img = np.array(img, dtype=np.uint8).reshape([res[1], res[0], 3])
         except: 
-            print(img, res, sep="\n")
-            exit()
+            # print(img, res, sep="\n")
+            exit("Error during detection")
         img = np.flip(img, axis=0)
         
         # image = Image.fromarray(img)
         # image.save('images/screenshot.png')
 
-        return interpret_image("green", "red", img)
+        return interpret_image("green", "blue", img)
     
     def save_image(self, image, resolution, options, filename, quality=-1):
         self.env.save_image(image, resolution, options, filename, quality)
@@ -89,7 +95,8 @@ class PiCarX(object):
         if connect:
             self.env.connect()
         self.env.start_simulation()
-        # we don't know why, but it is required twice
+        # we don't know why, but it is required twice more
+        self.env.start_simulation()
         self.env.start_simulation()
 
     def stop_sim(self, disconnect):
@@ -102,38 +109,55 @@ class PiCarX(object):
         except: pass
         self.start_sim(connect)
 
-    def is_in_area(self, object_name):
-        obj_handle = self.env.get_handle(object_name)
-        pos = self.env.get_object_position(obj_handle)
+    def is_in_area(self, pos):
         if pos[0] < -2 or pos[0] > 2:
             return False
         if pos[1] < -2 or pos[1] > 2:
             return False
         return True
 
-    def get_rewards(self):
+    def get_reward(self):
         r = 0
-        # add spheres reward
+        # add cuboids reward
         success = False
-        for i in range(self.spheres_num):
-            if not self.is_in_area(f"Sphere_{i}"):
-                if self.sphere_inside[i]:
-                    success = True
-                    self.sphere_inside[i] = False
+        for i, cuboid_handle in enumerate(self.cuboids_handles):
+            # check if the cuboid was already outside the area
+            if not self.is_in_area(self.cuboids[i]):
+                    continue
+            pos = self.env.get_object_position(cuboid_handle)
+            pos = [round(pos[0], 2), round(pos[1], 2)]
+            # check if the cuboid has been moved
+            if pos[0] != self.cuboids[i][0] or pos[1] != self.cuboids[i][1]:
+                if pos[0] != self.cuboids[i][0]:
+                    print("0:", pos[0], self.cuboids[i][0])
+                elif pos[1] != self.cuboids[i][1]:
+                    print("1:", pos[1], self.cuboids[i][1])
+                success = True
+                # check if the cuboid is outside the area
+                if not self.is_in_area(pos):
                     r += 10
+                else:
+                    r += 0.25
+                    # print("cuboid", i, "changed")
+                # update stored cuboid position
+                self.cuboids[i] = pos
+
         if not success:
             r -= 1
-        # TODO implement (smaller or periodic) negative rewards
-        # when agent is moving the ball (instead of the current -1)
         return r
 
     def move(self, movement, angle, duration=1):
         # move the robot in env and return the collected reward
         if not movement:
-            base = (0, 0)
+            # to avoid having the robot stuck, the "stay still" action
+            # is replaced with "go forward" (i.e. movement=1 angle=90)
+            if angle == 90:
+                base = self.forward_vel
+            else:
+                base = (0, 0)
         else:
-            base = (1.2, 1.2)
-        max_diff = 1.7
+            base = self.forward_vel
+        max_diff = 1.89
         diff = abs(angle - 90) / 90 * max_diff
         if angle > 90:
             diff = (diff, 0)
@@ -145,21 +169,34 @@ class PiCarX(object):
         self.change_velocity(v)
         # check for position outside the area during movement
         # if outside, go back to the last position
+        start_pos = self.env.get_object_position(self.car_handle)
+        start_pos = [round(start_pos[0], 1), round(start_pos[1], 1)]
         start_time = time.time()
         while True:
-            if not self.is_in_area("Pioneer_p3dx"):
-                print("OUTSIDE")
+            if not self.is_in_area(self.env.get_object_position(self.car_handle)):
+                # print("OUTSIDE")
                 self.change_velocity((-v[0], -v[1]))
-                time.sleep(time.time()-start_time)
+                # time.sleep((time.time()-start_time))
+                time.sleep(1)
                 break
             if time.time() - start_time >= duration:
                 break
             time.sleep(0.05)
-        self.change_velocity(base)
+        end_pos = self.env.get_object_position(self.car_handle)
+        end_pos = [round(end_pos[0], 1), round(end_pos[1], 1)]
+        if end_pos == start_pos:
+            # print("The robot is stuck")
+            self.change_velocity((-self.forward_vel[0], -self.forward_vel[1]))
+            time.sleep(1)
+            angle = 300
+            diff = abs(angle - 90) / 90 * max_diff
+            self.change_velocity((diff, 0))
+            time.sleep(1)
+        self.change_velocity((0, 0))
         # check for new rewards
-        r = self.get_rewards()
+        r = self.get_reward()
         # check if done
-        done = not any(self.sphere_inside)
+        done = not any(self.cuboids)
         return r, done
     
     def act(self, trials):
@@ -176,27 +213,31 @@ class PiCarX(object):
                 r_ep[i] += r
         return np.mean(r_ep)
 
+    def calibrate(self):
+        # testing for movement calibration
+        self.start_sim(connect=False)
+        # base = (1.2, 1.2)
+        base = (0, 0)
+        angle = 90
+        for i in range(4):
+            max_diff = 1.7
+            diff = abs(angle - 90) / 90 * max_diff
+            if angle > 90:
+                diff = (diff, 0)
+            elif angle < 90:
+                diff = (0, diff)
+            else:
+                diff = (0, 0)
+            v = [base[0] + diff[0], base[1] + diff[1]]
+            self.change_velocity(v)
+            print(self.get_reward())
+            time.sleep(1)
+        self.change_velocity((0, 0))
+        time.sleep(4)
+
     def train(self, epochs, M, T, gamma, ef=None, run_name=None):
         print('Starting training...')
         reinforce = Reinforce(self, epochs, M, T, gamma, ef, run_name)
         rewards = reinforce()
         return rewards
-
-        # testing for movement calibration
-        # base = (1.2, 1.2)
-        # base = (0, 0)
-        # angle = 0
-        # for i in range(1):
-        #     print(i)
-        #     max_diff = 1.7
-        #     diff = abs(angle - 90) / 90 * max_diff
-        #     print(diff)
-        #     if angle > 90:
-        #         diff = (diff, 0)
-        #     elif angle < 90:
-        #         diff = (0, diff)
-        #     else:
-        #         diff = (0, 0)
-        #     v = [base[0] + diff[0], base[1] + diff[1]]
-        #     self.change_velocity(v)
-        #     time.sleep(1)
+        # self.calibrate()

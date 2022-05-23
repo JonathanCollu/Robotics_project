@@ -1,9 +1,8 @@
 import os
-from pickle import NONE
-from matplotlib.pyplot import connect
 import torch
 import numpy as np
 from torch.distributions import Categorical
+from PIL import Image, ImageOps
 
 class Reinforce():
     """ Parameters:
@@ -27,25 +26,27 @@ class Reinforce():
     def __call__(self):
         rewards = []
         losses = []
-        best_r_ep = 0
+        best_r_ep = -np.inf
         best_ep = 0
+        saving_delay = 10
 
         # start training
+        self.agent.start_sim(connect=False)
         for epoch in range(self.epochs):
-            l, r = self.epoch()
+            l, r = self.epoch(epoch % 10 == 0)
             losses.append(l)
             rewards.append(r)
             print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
             if rewards[-1] >= best_r_ep:
                 best_r_ep = rewards[-1]
-                print("New max number of steps in episode:", best_r_ep)
-                if self.run_name is not None:
-                    # remove old weights
-                    if os.path.isfile(f"{self.run_name}_{best_ep}_weights.pt"): 
-                        os.remove(f"{self.run_name}_{best_ep}_weights.pt")
-                    # save model
-                    torch.save(self.agent.policy.state_dict(), f"{self.run_name}_{epoch}_weights.pt")
-                    best_ep = epoch
+                best_ep = epoch
+                print("New max reward in episode:", best_r_ep)
+            if self.run_name is not None and epoch % saving_delay == 0:
+                # remove old weights
+                if os.path.isfile(f"{self.run_name}_{epoch-saving_delay}_weights.pt"): 
+                    os.remove(f"{self.run_name}_{epoch-saving_delay}_weights.pt")
+                # save model
+                torch.save(self.agent.policy.state_dict(), f"exp_results/{self.run_name}_{epoch}_weights.pt")
         
         if self.run_name is not None:
             # save losses and rewards
@@ -69,7 +70,8 @@ class Reinforce():
         for _ in range(self.T):
             s = self.agent.detect_objects()
             m, m_dist, a, a_dist = self.select_action(s)
-            r, done = self.agent.move(m.item(), a.item())
+            # r, done = self.agent.move(m.item(), a.item())
+            r, done = self.agent.move(0, 90)
             trace.append((s, (m, a), r, (m_dist, a_dist)))
             reward += r
             if done:
@@ -79,12 +81,14 @@ class Reinforce():
         self.agent.change_velocity((0, 0))
         return trace, reward
 
-    def epoch(self):
+    def epoch(self, reset=False):
+        if reset:
+            self.agent.reset_env()
         loss = torch.tensor([0], dtype=torch.float32) 
         reward = 0
-        for _ in range(self.M):
-            if _ in [1,2]:  # for testing the reset env after done=True
-                self.agent.reset_env()
+        for m in range(self.M):
+            # if m in [1,2]:  # for testing the reset env after done=True
+                # self.agent.reset_env()
             h0, reward_t = self.sample_trace()
             reward += reward_t
             R = 0
