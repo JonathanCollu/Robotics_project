@@ -30,6 +30,7 @@ class PiCarX(object):
             pos = self.env.get_object_position(self.cuboids_handles[-1])
             pos = [round(pos[0], 2), round(pos[1], 2)]
             self.cuboids.append(pos)
+
         # motors, positions and angles
         self.car_handle = self.env.get_handle("Pioneer_p3dx")
         self.cam_handle = self.env.get_handle('Vision_sensor')
@@ -38,6 +39,7 @@ class PiCarX(object):
         self.angular_velocity = np.zeros(2)
         self.angles = np.zeros(2)
         self.forward_vel = (1.2, 1.2)
+        self.stuck_steps = 0
         
     def current_speed(self):
         """
@@ -181,13 +183,16 @@ class PiCarX(object):
         end_pos = self.env.get_object_position(self.car_handle)
         end_pos = [round(end_pos[0], 1), round(end_pos[1], 1)]
         if end_pos == start_pos:
-            # print("The robot is stuck")
-            self.change_velocity((-self.forward_vel[0], -self.forward_vel[1]))
-            time.sleep(1)
-            angle = 300
-            diff = abs(angle - 90) / 90 * max_diff
-            self.change_velocity((diff, 0))
-            time.sleep(1)
+            self.stuck_steps += 1
+            if self.stuck_steps >= 5:
+                # print("The robot is stuck")
+                self.stuck_steps = 0
+                self.change_velocity((-self.forward_vel[0], -self.forward_vel[1]))
+                time.sleep(1)
+                angle = 300
+                diff = abs(angle - 90) / 90 * max_diff
+                self.change_velocity((diff, 0))
+                time.sleep(1)
         self.change_velocity((0, 0))
         # check for new rewards
         r = self.get_reward()
