@@ -128,10 +128,6 @@ class PiCarX(object):
             pos = [round(pos[0], 2), round(pos[1], 2)]
             # check if the cuboid has been moved
             if pos[0] != self.cuboids[i][0] or pos[1] != self.cuboids[i][1]:
-                if pos[0] != self.cuboids[i][0]:
-                    print("0:", pos[0], self.cuboids[i][0])
-                elif pos[1] != self.cuboids[i][1]:
-                    print("1:", pos[1], self.cuboids[i][1])
                 success = True
                 # check if the cuboid is outside the area
                 if not self.is_in_area(pos):
