@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from torch.distributions import Categorical
+from torch.distributions import Bernoulli, Categorical
 from PIL import Image, ImageOps
 
 class Reinforce():
@@ -62,11 +62,11 @@ class Reinforce():
         # get the probability distribution of the actions
         movement_prob, angles_dist = self.agent.policy.forward(s)
         # sample movement=1 with prob=movement_prob
-        movement = torch.bernoulli(movement_prob.detach()).type(torch.int64)
-        movement_dist = (movement_prob, 1-movement_prob)
+        movement_dist = Bernoulli(movement_prob) 
         # sample angle from angles distribution
         angles_dist = Categorical(angles_dist)
         angle = angles_dist.sample()
+        movement = movement_dist.sample()
         return movement, movement_dist, angle, angles_dist
 
     def sample_trace(self):
@@ -99,11 +99,12 @@ class Reinforce():
             # len-2 reason: -1 for having 0..len-1 and -1 for skipping last state
             for t in range(len(h0) - 2, -1, -1):
                 R = h0[t][2] + self.gamma * R
-                loss_m = -torch.log(h0[t][3][0][h0[t][1][0]])[0]
+                loss_m = -h0[t][3][0].log_prob(h0[t][1][0])[0] #-torch.log(h0[t][3][0][h0[t][1][0]])[0]
                 loss_a = -h0[t][3][1].log_prob(h0[t][1][1])
+                #print(R, loss_m, loss_a, sep='\n')
                 loss += R * (loss_m + loss_a)
                 if self.entropy_factor is not None:
-                    loss += self.entropy_factor * (h0[t][3][0].entropy() + h0[t][3][1].entropy())
+                    loss += self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy())
         loss /= self.M
         reward /= self.M
         self.train(loss)
