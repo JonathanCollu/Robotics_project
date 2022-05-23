@@ -43,8 +43,8 @@ class Reinforce():
                 print("New max reward in episode:", best_r_ep)
             if self.run_name is not None and epoch % saving_delay == 0:
                 # remove old weights
-                if os.path.isfile(f"{self.run_name}_{epoch-saving_delay}_weights.pt"): 
-                    os.remove(f"{self.run_name}_{epoch-saving_delay}_weights.pt")
+                if os.path.isfile(f"exp_results/{self.run_name}_{epoch-saving_delay}_weights.pt"): 
+                    os.remove(f"exp_results/{self.run_name}_{epoch-saving_delay}_weights.pt")
                 # save model
                 torch.save(self.agent.policy.state_dict(), f"exp_results/{self.run_name}_{epoch}_weights.pt")
                 # save losses and rewards
@@ -69,8 +69,7 @@ class Reinforce():
         for _ in range(self.T):
             s = self.agent.detect_objects()
             m, m_dist, a, a_dist = self.select_action(s)
-            # r, done = self.agent.move(m.item(), a.item())
-            r, done = self.agent.move(0, 90)
+            r, done = self.agent.move(m.item(), a.item())
             trace.append((s, (m, a), r, (m_dist, a_dist)))
             reward += r
             if done:
