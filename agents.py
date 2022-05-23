@@ -135,7 +135,7 @@ class PiCarX(object):
                 if not self.is_in_area(pos):
                     r += 10
                 else:
-                    r += 0.25
+                    r += 0.5
                     # print("cuboid", i, "changed")
                 # update stored cuboid position
                 self.cuboids[i] = pos
@@ -170,9 +170,11 @@ class PiCarX(object):
         start_pos = self.env.get_object_position(self.car_handle)
         start_pos = [round(start_pos[0], 1), round(start_pos[1], 1)]
         start_time = time.time()
+        outside = False
         while True:
             if not self.is_in_area(self.env.get_object_position(self.car_handle)):
                 # print("OUTSIDE")
+                outside = True
                 self.change_velocity((-v[0], -v[1]))
                 # time.sleep((time.time()-start_time))
                 time.sleep(1)
@@ -183,8 +185,9 @@ class PiCarX(object):
         end_pos = self.env.get_object_position(self.car_handle)
         end_pos = [round(end_pos[0], 1), round(end_pos[1], 1)]
         if end_pos == start_pos:
-            self.stuck_steps += 1
-            if self.stuck_steps >= 5:
+            if not outside:
+                self.stuck_steps += 1
+            if self.stuck_steps >= 10:
                 # print("The robot is stuck")
                 self.stuck_steps = 0
                 self.change_velocity((-self.forward_vel[0], -self.forward_vel[1]))
@@ -194,6 +197,7 @@ class PiCarX(object):
                 self.change_velocity((diff, 0))
                 time.sleep(1)
         self.change_velocity((0, 0))
+        
         # check for new rewards
         r = self.get_reward()
         # check if done

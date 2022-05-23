@@ -56,7 +56,7 @@ if __name__ == "__main__":
     agent = PiCarX(model, optimizer, 10)
 
     try:
-        agent.train(10, 2, 5, 0.99, run_name="10_2_5")
+        agent.train(100, 1, 5, 0.99, run_name="10_1_5")
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 

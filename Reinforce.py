@@ -42,15 +42,21 @@ class Reinforce():
                 best_ep = epoch
                 print("New max reward in episode:", best_r_ep)
             if self.run_name is not None and epoch % saving_delay == 0:
-                # remove old weights
-                if os.path.isfile(f"exp_results/{self.run_name}_{epoch-saving_delay}_weights.pt"): 
-                    os.remove(f"exp_results/{self.run_name}_{epoch-saving_delay}_weights.pt")
-                # save model
-                torch.save(self.agent.policy.state_dict(), f"exp_results/{self.run_name}_{epoch}_weights.pt")
-                # save losses and rewards
-                np.save("exp_results/"+self.run_name, np.array([losses, rewards]))
+                self.save_checkpoint(losses, rewards, epoch, saving_delay)
+
+        if self.run_name is not None:
+                self.save_checkpoint(losses, rewards, epoch, 0)
 
         return rewards
+
+    def save_checkpoint(self, losses, rewards, epoch, saving_delay):
+        # remove old weights
+        if os.path.isfile(f"exp_results/{self.run_name}_{epoch-saving_delay}_weights.pt"): 
+            os.remove(f"exp_results/{self.run_name}_{epoch-saving_delay}_weights.pt")
+        # save model
+        torch.save(self.agent.policy.state_dict(), f"exp_results/{self.run_name}_{epoch}_weights.pt")
+        # save losses and rewards
+        np.save("exp_results/"+self.run_name, np.array([losses, rewards]))
     
     def select_action(self, s):
         # get the probability distribution of the actions
@@ -110,6 +116,6 @@ class Reinforce():
         self.agent.optimizer.zero_grad()
         loss.backward()
         # clip gradient
-        #torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+        torch.nn.utils.clip_grad_norm_(self.agent.policy.parameters(), 10)
         # update weigths
         self.agent.optimizer.step()
