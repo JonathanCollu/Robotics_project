@@ -93,8 +93,8 @@ class PiCarX(object):
             exit("Error during detection")
         img = np.flip(img, axis=0)
         
-        # image = Image.fromarray(img)
-        # image.save('images/screenshot.png')
+        image = Image.fromarray(img)
+        image.save('images/screenshot.png')
 
         return interpret_image("green", "blue", img)
     
@@ -247,14 +247,23 @@ class PiCarX(object):
             r_ep.append(0)
             done = False
             self.reset_env()
+            test=0
             while not done:
                 with torch.no_grad():
                     self.policy.eval()
                     s = self.detect_objects()
+                    cub = Image.fromarray(np.array(s[0]*255, np.uint8))
+                    cub.save('images/cuboids_mask.png')
+                    bor = Image.fromarray(np.array(s[1]*255, np.uint8))
+                    bor.save('images/border_mask.png')
+                    if test==6:
+                        self.stop_sim(disconnect=True)
+                        exit()
+                    test+=1
                     movement_prob, angles_dist = self.policy.forward(s)
                     m = movement_prob.round()
                     a = angles_dist.argmax()
-                    r, done = self.move(m, a, s)
+                    r, done = self.move(1, 90, s)
                 r_ep[i] += r
                 print(r)
         return np.mean(r_ep)
