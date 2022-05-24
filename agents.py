@@ -150,6 +150,8 @@ class PiCarX(object):
                 success = True
                 # check if the cuboid is outside the area
                 if not self.is_in_area(pos):
+                    out_of_area_pos = (self.cuboids[i][0], self.cuboids[i][1], -2)
+                    self.env.set_object_position(cuboid_handle, out_of_area_pos)
                     r += 10
                 else:
                     movement_gain = self.min_border_dist(self.cuboids[i]) - self.min_border_dist(pos)
@@ -164,8 +166,11 @@ class PiCarX(object):
                 # update stored cuboid position
                 self.cuboids[i] = pos
         
+        r += np.sum(cuboids_mask) / cuboids_mask.size
         if not success:
-            r -= 0.1 - np.sum(cuboids_mask) / cuboids_mask.size
+            # r -= 0.1 - np.sum(cuboids_mask) / cuboids_mask.size
+            if np.sum(cuboids_mask) / cuboids_mask.size == 0:
+                r -= 0.1
         return r
 
     def move(self, movement, angle, s, duration=1):
@@ -206,6 +211,7 @@ class PiCarX(object):
             if time.time() - start_time >= duration:
                 break
             time.sleep(0.05)
+        # check if the robot is stuck
         end_pos = self.env.get_object_position(self.car_handle)
         end_pos = [round(end_pos[0], 1), round(end_pos[1], 1)]
         if end_pos == start_pos:
@@ -220,25 +226,37 @@ class PiCarX(object):
                 diff = abs(angle - 90) / 90 * max_diff
                 self.change_velocity((diff, 0))
                 time.sleep(1)
+        # reset velocity to (0, 0)
         self.change_velocity((0, 0))
         # check for new rewards
         r = self.get_reward(s[0])
-        # check if done
-        done = not any(self.cuboids)
+        # penalize if no good action + has moved outside
+        if r <= 0 and outside:
+            r = -1
+        # check if robot fell outside the area
+        if self.env.get_object_position(self.car_handle)[2] < 0:
+            done = True
+        else:  # check if task is done
+            done = not any(self.cuboids)
         return r, done
     
     def act(self, trials):
-        r_ep = [0]*trials
+        self.start_sim(connect=False)
+        r_ep = []
         for i in range(trials):
+            r_ep.append(0)
             done = False
             self.reset_env()
             while not done:
                 with torch.no_grad():
                     self.policy.eval()
                     s = self.detect_objects()
-                    pred = self.policy.forward(s)
-                    r, done = self.move(torch.argmax(pred.detach()).item())
+                    movement_prob, angles_dist = self.policy.forward(s)
+                    m = movement_prob.round()
+                    a = angles_dist.argmax()
+                    r, done = self.move(m, a, s)
                 r_ep[i] += r
+                print(r)
         return np.mean(r_ep)
 
     def calibrate(self):
