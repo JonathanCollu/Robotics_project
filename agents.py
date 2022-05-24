@@ -48,6 +48,12 @@ class PiCarX(object):
             pos = self.env.get_object_position(cuboid_handle)
             pos = [round(pos[0], 2), round(pos[1], 2)]
             self.cuboids.append(pos)
+    
+    def randomize_positions(self):
+        for cuboid_handle in self.cuboids_handles:
+            p0 = np.random.uniform(self.area_min[0], self.area_max[0])
+            p1 = np.random.uniform(self.area_min[1], self.area_max[1])
+            self.env.set_object_position(cuboid_handle, [p0,p1])
 
     def current_speed(self):
         """
@@ -118,6 +124,7 @@ class PiCarX(object):
         try: self.stop_sim(connect)
         except: pass
         self.start_sim(connect)
+        #self.randomize_positions()
         self.set_cuboids_pos()
 
     def min_border_dist(self, point):
@@ -258,7 +265,8 @@ class PiCarX(object):
                     bor.save('images/border_mask.png')
                     if test==6:
                         self.stop_sim(disconnect=True)
-                        exit()
+                        break
+                        #exit()
                     test+=1
                     movement_prob, angles_dist = self.policy.forward(s)
                     m = movement_prob.round()
