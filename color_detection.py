@@ -79,7 +79,6 @@ def interpret_image(ball_color, border_color, image):
     _, border_mask, _ = color_detect(image, border_color)
     ball_mask = np.round_(ball_mask / 255)
     border_mask = np.round_(border_mask / 255)
-    Image.fromarray(np.array(border_mask*255, dtype=np.uint8)).save("images/border_mask.png")
     mask = np.stack([ball_mask, border_mask])
     # composite_image = ball_mask + 2 * border_mask
     return mask
