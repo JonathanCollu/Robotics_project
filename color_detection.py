@@ -79,13 +79,13 @@ def interpret_image(ball_color, border_color, image):
     _, border_mask, _ = color_detect(image, border_color)
     ball_mask = np.round_(ball_mask / 255)
     border_mask = np.round_(border_mask / 255)
-    Image.fromarray(np.array(border_mask*255, dtype=np.uint8)).save("images/border_mask.png")
+    #Image.fromarray(np.array(border_mask*255, dtype=np.uint8)).save("images/border_mask.png")
     mask = np.stack([ball_mask, border_mask])
     # composite_image = ball_mask + 2 * border_mask
     return mask
 
 if __name__ == "__main__":
-    src_img = cv2.imread('images/img-1.png')
+    src_img = cv2.imread('../images/img-1.png')
     """
     img,img_2,img_3 =  color_detect(src_img,'red')  # Color detection function
     cv2.imshow("video", img)    # OpenCV image show
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     cv2.imshow("morphologyEx_img", img_3)    # OpenCV image show
     """
     
-    mask = interpret_image("green", "red", src_img)
+    mask = interpret_image("green", "blue", src_img)
     print(mask.shape)
     # print(list(set(i for j in ball_mask for i in j)))
     
