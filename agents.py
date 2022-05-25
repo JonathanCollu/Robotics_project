@@ -1,3 +1,4 @@
+from tabnanny import check
 import time
 
 import torch
@@ -48,12 +49,50 @@ class PiCarX(object):
             pos = self.env.get_object_position(cuboid_handle)
             pos = [round(pos[0], 2), round(pos[1], 2)]
             self.cuboids.append(pos)
-    
+
+    def check_pos(self, i, c):
+        bot_pos = self.env.get_object_position(self.car_handle)
+        bot_x = 5.1901e-01 / 2
+        bot_y = 4.1500e-01 / 2
+        hs = 1.2500e-01 / 2
+        for j in range(i):
+            if j == i: break
+            c2 = self.cuboids[j]
+            if c2[0] - hs >= c[0] - hs and c2[0] - hs <= c[0] + hs:
+                return True
+            if c2[0] + hs >= c[0] - hs and c2[0] + hs <= c[0] + hs:
+                return True
+            if c2[1] - hs >= c[1] - hs and c2[1] - hs <= c[1] + hs:
+                return True
+            if c2[1] + hs >= c[1] - hs and c2[1] + hs <= c[1] + hs:
+                return True
+        if c[0] - bot_x >= bot_pos[0] - bot_x and c[0] - bot_x <= bot_pos[0] + bot_x:
+            return True
+        if c[0] + bot_x >= bot_pos[0] - bot_x and c[0] + bot_x <= bot_pos[0] + bot_x:
+            return True
+        if c[1] - bot_y >= bot_pos[1] - bot_y and c[1] - bot_y <= bot_pos[1] + bot_y:
+            return True
+        if c[1] + bot_y >= bot_pos[1] - bot_y and c[1] + bot_y <= bot_pos[1] + bot_y:
+            return True
+        return False
+
+
+        
+
     def randomize_positions(self):
-        for cuboid_handle in self.cuboids_handles:
-            p0 = np.random.uniform(self.area_min[0], self.area_max[0])
-            p1 = np.random.uniform(self.area_min[1], self.area_max[1])
+        for i, cuboid_handle in enumerate(self.cuboids_handles):
+            p0 = np.random.uniform(self.area_min[0] + 0.5, self.area_max[0] - 0.5)
+            p1 = np.random.uniform(self.area_min[1] + 0.5, self.area_max[1] - 0.5)
+            while True:
+                overlapped = self.check_pos(i,[p0,p1])
+                if not overlapped: break
+                p0 = np.random.uniform(self.area_min[0] + 0.5, self.area_max[0] - 0.5)
+                p1 = np.random.uniform(self.area_min[1] + 0.5, self.area_max[1] - 0.5)
             self.env.set_object_position(cuboid_handle, [p0,p1])
+            self.set_cuboids_pos()
+                
+
+
 
     def current_speed(self):
         """
@@ -124,8 +163,8 @@ class PiCarX(object):
         try: self.stop_sim(connect)
         except: pass
         self.start_sim(connect)
-        #self.randomize_positions()
         self.set_cuboids_pos()
+        self.randomize_positions()
 
     def min_border_dist(self, point):
         """ minimum distance between a point and the 4 borders
