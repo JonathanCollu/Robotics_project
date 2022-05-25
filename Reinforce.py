@@ -60,23 +60,32 @@ class Reinforce():
     
     def select_action(self, s):
         # get the probability distribution of the actions
-        movement_prob, angles_dist = self.agent.policy.forward(s)
+        if self.agent.policy.__class__.__name__ == "RedPolicyNet":
+            movement_prob, right_turn_prob, angles_dist = self.agent.policy.forward(s)
+            # sample right_turn=1 with prob=right_turn_prob
+            right_turn_dist = Bernoulli(right_turn_prob) 
+            right_turn = right_turn_dist.sample()
+        else:
+            movement_prob, angles_dist = self.agent.policy.forward(s)
+            right_turn_dist = None
+            right_turn = None
         # sample movement=1 with prob=movement_prob
         movement_dist = Bernoulli(movement_prob) 
         movement = movement_dist.sample()
         # sample angle from angles distribution
         angles_dist = Categorical(angles_dist)
         angle = angles_dist.sample()
-        return movement, movement_dist, angle, angles_dist
+
+        return movement, movement_dist, angle, angles_dist, right_turn, right_turn_dist
 
     def sample_trace(self):
         reward = 0
         trace = []
         for _ in range(self.T):
             s = self.agent.detect_objects()
-            m, m_dist, a, a_dist = self.select_action(s)
-            r, done = self.agent.move(m.item(), a.item(), s)
-            trace.append((s, (m, a), r, (m_dist, a_dist)))
+            m, m_dist, a, a_dist, rt, rt_dist = self.select_action(s)
+            r, done = self.agent.move(m.item(), a.item(), None if rt is None else rt.item(), s)
+            trace.append((s, (m, a, rt), r, (m_dist, a_dist, rt_dist)))
             reward += r
             if done:
                 self.agent.reset_env()
@@ -101,9 +110,15 @@ class Reinforce():
                 R = h0[t][2] + self.gamma * R
                 loss_m = -h0[t][3][0].log_prob(h0[t][1][0])[0]  #-torch.log(h0[t][3][0][h0[t][1][0]])[0]
                 loss_a = -h0[t][3][1].log_prob(h0[t][1][1])
-                loss += R * (loss_m + loss_a)
+                if h0[t][3][2] is not None:  # use right_turn output head (e.g. RedPolicyNet)
+                    loss_rt = -h0[t][3][2].log_prob(h0[t][1][2])[0]  # right turn loss
+                    if self.entropy_factor is not None:
+                        rt_entropy = h0[t][3][0].entropy()[0]
+                    else: rt_entropy = 0
+                else: loss_rt = 0
+                loss += R * (loss_m + loss_a + loss_rt)
                 if self.entropy_factor is not None:
-                    loss += self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy())
+                    loss += self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy() + rt_entropy)
         loss /= self.M
         reward /= self.M
         self.train(loss)

@@ -1,6 +1,5 @@
 from tabnanny import check
 import time
-
 import torch
 import numpy as np
 from PIL import Image
@@ -21,7 +20,6 @@ if settings.draw_dist:
 class PiCarX(object):
     def __init__(self, policy, optimizer, cuboids_num):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
-        # self.start_sim(connect=True)
         self.env.connect()
         self.policy = policy
         self.optimizer = optimizer
@@ -47,53 +45,46 @@ class PiCarX(object):
         self.cuboids = []
         for cuboid_handle in self.cuboids_handles:
             pos = self.env.get_object_position(cuboid_handle)
-            pos = [round(pos[0], 2), round(pos[1], 2)]
+            pos = [round(pos[0], 2), round(pos[1], 2), pos[2]]
             self.cuboids.append(pos)
 
-    def check_pos(self, i, c):
+    def is_pos_allowed(self, i, pos):
         bot_pos = self.env.get_object_position(self.car_handle)
-        bot_x = 5.1901e-01 / 2
-        bot_y = 4.1500e-01 / 2
-        hs = 1.2500e-01 / 2
+        bot_x = 5.1901e-01 / 2  # bot height
+        bot_y = 4.1500e-01 / 2  # bot width
+        hs = 1.2500e-01 / 2  # half side
         for j in range(i):
-            if j == i: break
             c2 = self.cuboids[j]
-            if c2[0] - hs >= c[0] - hs and c2[0] - hs <= c[0] + hs:
+            if c2[0] - hs >= pos[0] - hs and c2[0] - hs <= pos[0] + hs:
                 return True
-            if c2[0] + hs >= c[0] - hs and c2[0] + hs <= c[0] + hs:
+            if c2[0] + hs >= pos[0] - hs and c2[0] + hs <= pos[0] + hs:
                 return True
-            if c2[1] - hs >= c[1] - hs and c2[1] - hs <= c[1] + hs:
+            if c2[1] - hs >= pos[1] - hs and c2[1] - hs <= pos[1] + hs:
                 return True
-            if c2[1] + hs >= c[1] - hs and c2[1] + hs <= c[1] + hs:
+            if c2[1] + hs >= pos[1] - hs and c2[1] + hs <= pos[1] + hs:
                 return True
-        if c[0] - bot_x >= bot_pos[0] - bot_x and c[0] - bot_x <= bot_pos[0] + bot_x:
+        if pos[0] - bot_x >= bot_pos[0] - bot_x and pos[0] - bot_x <= bot_pos[0] + bot_x:
             return True
-        if c[0] + bot_x >= bot_pos[0] - bot_x and c[0] + bot_x <= bot_pos[0] + bot_x:
+        if pos[0] + bot_x >= bot_pos[0] - bot_x and pos[0] + bot_x <= bot_pos[0] + bot_x:
             return True
-        if c[1] - bot_y >= bot_pos[1] - bot_y and c[1] - bot_y <= bot_pos[1] + bot_y:
+        if pos[1] - bot_y >= bot_pos[1] - bot_y and pos[1] - bot_y <= bot_pos[1] + bot_y:
             return True
-        if c[1] + bot_y >= bot_pos[1] - bot_y and c[1] + bot_y <= bot_pos[1] + bot_y:
+        if pos[1] + bot_y >= bot_pos[1] - bot_y and pos[1] + bot_y <= bot_pos[1] + bot_y:
             return True
         return False
-
-
-        
 
     def randomize_positions(self):
         for i, cuboid_handle in enumerate(self.cuboids_handles):
             p0 = np.random.uniform(self.area_min[0] + 0.5, self.area_max[0] - 0.5)
             p1 = np.random.uniform(self.area_min[1] + 0.5, self.area_max[1] - 0.5)
             while True:
-                overlapped = self.check_pos(i,[p0,p1])
+                overlapped = self.is_pos_allowed(i, [p0, p1])
                 if not overlapped: break
                 p0 = np.random.uniform(self.area_min[0] + 0.5, self.area_max[0] - 0.5)
                 p1 = np.random.uniform(self.area_min[1] + 0.5, self.area_max[1] - 0.5)
-            self.env.set_object_position(cuboid_handle, [p0,p1])
+            self.env.set_object_position(cuboid_handle, [p0, p1, self.cuboids[i][2]])
             self.set_cuboids_pos()
                 
-
-
-
     def current_speed(self):
         """
         Current angular velocity of the wheel motors in rad/s
@@ -138,8 +129,8 @@ class PiCarX(object):
             exit("Error during detection")
         img = np.flip(img, axis=0)
         
-        image = Image.fromarray(img)
-        image.save('images/screenshot.png')
+        # image = Image.fromarray(img)
+        # image.save('images/screenshot.png')
 
         return interpret_image("green", "blue", img)
     
@@ -165,6 +156,7 @@ class PiCarX(object):
         self.start_sim(connect)
         self.set_cuboids_pos()
         self.randomize_positions()
+        self.stuck_steps = 0
 
     def min_border_dist(self, point):
         """ minimum distance between a point and the 4 borders
@@ -190,7 +182,7 @@ class PiCarX(object):
             if not self.is_in_area(self.cuboids[i]):
                     continue
             pos = self.env.get_object_position(cuboid_handle)
-            pos = [round(pos[0], 2), round(pos[1], 2)]
+            pos = [round(pos[0], 2), round(pos[1], 2), pos[2]]
             # check if the cuboid has been moved
             if pos[0] != self.cuboids[i][0] or pos[1] != self.cuboids[i][1]:
                 success = True
@@ -198,7 +190,8 @@ class PiCarX(object):
                 if not self.is_in_area(pos):
                     out_of_area_pos = (self.cuboids[i][0], self.cuboids[i][1], -2)
                     self.env.set_object_position(cuboid_handle, out_of_area_pos)
-                    r += 10
+                    # r += 10
+                    r += 50
                 else:
                     movement_gain = self.min_border_dist(self.cuboids[i]) - self.min_border_dist(pos)
                     # reward between 0 and 1 based on the min distance of the cube to the borders
@@ -212,15 +205,20 @@ class PiCarX(object):
                 # update stored cuboid position
                 self.cuboids[i] = pos
         
-        r += np.sum(cuboids_mask) / cuboids_mask.size
+        # r += np.sum(cuboids_mask) / cuboids_mask.size
+        r += 10 * np.sum(cuboids_mask) / cuboids_mask.size
         if not success:
             # r -= 0.1 - np.sum(cuboids_mask) / cuboids_mask.size
             if np.sum(cuboids_mask) / cuboids_mask.size == 0:
                 r -= 0.1
         return r
 
-    def move(self, movement, angle, s, duration=1):
+    def move(self, movement, angle, rt, s, duration=1):
+        # angle += 45  # test reduced actions
         # move the robot in env and return the collected reward
+        if rt is not None:
+            if rt == 1:
+                angle = 180 - angle
         if not movement:
             # to avoid having the robot stuck, the "stay still" action
             # is replaced with "go forward" (i.e. movement=1 angle=90)
@@ -282,8 +280,8 @@ class PiCarX(object):
         # check if robot fell outside the area
         if self.env.get_object_position(self.car_handle)[2] < 0:
             done = True
-        else:  # check if task is done
-            done = not any(self.cuboids)
+        else:  # check if task is done (all cuboids fell outside the area)
+            done = all([self.cuboids[i][2] < 0 for i in range(self.cuboids_num)])
         return r, done
     
     def act(self, trials):
@@ -293,7 +291,7 @@ class PiCarX(object):
             r_ep.append(0)
             done = False
             self.reset_env()
-            test=0
+            # test=0
             while not done:
                 with torch.no_grad():
                     self.policy.eval()
@@ -302,17 +300,21 @@ class PiCarX(object):
                     cub.save('images/cuboids_mask.png')
                     bor = Image.fromarray(np.array(s[1]*255, np.uint8))
                     bor.save('images/border_mask.png')
-                    if test==6:
-                        self.stop_sim(disconnect=True)
-                        break
+                    # if test==6:
+                        # self.stop_sim(disconnect=True)
                         #exit()
-                    test+=1
-                    movement_prob, angles_dist = self.policy.forward(s)
+                    # test+=1
+                    if self.policy.__class__.__name__ == "RedPolicyNet":
+                        movement_prob, right_turn_prob, angles_dist = self.agent.policy.forward(s)
+                        rt = right_turn_prob.round()
+                    else:
+                        movement_prob, angles_dist = self.policy.forward(s)
+                        rt = None
                     m = movement_prob.round()
                     a = angles_dist.argmax()
-                    r, done = self.move(1, 90, s)
+                    r, done = self.move(m, a, rt, s)
                 r_ep[i] += r
-                print(r)
+                # print(r)
         return np.mean(r_ep)
 
     def calibrate(self):

@@ -1,7 +1,7 @@
 from __future__ import print_function
 from src.Model import PolicyNet
 from src.agents import PiCarX
-from src.Model   import PolicyNet
+from src.Model   import PolicyNet, RedPolicyNet
 import settings
 import time
 import matplotlib.pyplot as plt
@@ -51,14 +51,15 @@ import torch
 
 if __name__ == "__main__":
     plt.ion()
-    model = PolicyNet()
-    state_dict = torch.load(f"exp_results/relu_2_3_200to1199_999_weights.pt")
-    model.load_state_dict(state_dict)
+    model = RedPolicyNet()
+    # state_dict = torch.load(f"exp_results/new_relu_2_3_271to460_weights.pt")
+    # model.load_state_dict(state_dict)
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
-    agent = PiCarX(model, optimizer, 10)
+    agent = PiCarX(model, optimizer, 1)
 
     try:
-        agent.train(300, 2, 3, 0.99, ef=None, run_name="relu_2_3_1200to1499")
+        # agent.train(500, 1, 3, 0.99, ef=None, run_name="91a_1c_relu_2_3")
+        agent.train(1, 1, 5, 0.99, ef=None, run_name=None)
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 
