@@ -85,7 +85,7 @@ def interpret_image(ball_color, border_color, image):
     return mask
 
 if __name__ == "__main__":
-    src_img = cv2.imread('img-1.png')
+    src_img = cv2.imread('images/img-1.png')
     """
     img,img_2,img_3 =  color_detect(src_img,'red')  # Color detection function
     cv2.imshow("video", img)    # OpenCV image show
