@@ -45,7 +45,7 @@ class PolicyNet(nn.Module):
         return movement, angle
 
 
-class RedPolicyNet(nn.Module):
+class TinyPolicyNet(nn.Module):
     """ REDuced policy network for the robot agent. "Reduced" refers to
         the over 5 times lower number of parameters of this network compared
         to the first PolicyNet (~120k vs ~660k weights respectively).
@@ -55,13 +55,13 @@ class RedPolicyNet(nn.Module):
         assigned to non interesting locations.
     """
     def __init__(self):
-        super(RedPolicyNet, self).__init__()
+        super(TinyPolicyNet, self).__init__()
 
         self.hidden_layers = nn.Sequential(
             nn.AvgPool2d(20, 20),
             nn.Flatten(),
             nn.Linear(864, 128),
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
         self.movement_head = nn.Sequential(
@@ -69,13 +69,8 @@ class RedPolicyNet(nn.Module):
             nn.Sigmoid()
         )
 
-        self.right_turn_head = nn.Sequential(
-            nn.Linear(129, 1),
-            nn.Sigmoid()
-        )
-
         self.angle_head = nn.Sequential(
-            nn.Linear(130, 91),
+            nn.Linear(128, 7),
             nn.Softmax(dim=1)
         )
 
@@ -83,7 +78,48 @@ class RedPolicyNet(nn.Module):
         x = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
         hidden = self.hidden_layers(x)
         movement = self.movement_head(hidden)
-        hidden_movement = torch.cat([hidden, movement], 1)
-        right_turn = self.right_turn_head(torch.cat([hidden, movement], 1))
-        angle = self.angle_head(torch.cat([hidden_movement, right_turn], 1))
-        return movement, right_turn, angle
+        angle = self.angle_head(hidden)
+        return movement, angle
+
+
+class ConvPolicyNet(nn.Module):
+    """ TODO: add description
+    """
+    def __init__(self, value=False):
+        super(ConvPolicyNet, self).__init__()
+        self.value = value
+
+        self.hidden_layers = nn.Sequential(
+            nn.AvgPool2d(8),
+            nn.Conv2d(4, 8, kernel_size=6, stride=2),
+            nn.Conv2d(8, 16, kernel_size=5, stride=1),
+            nn.AvgPool2d(2),
+            nn.Flatten(),
+            nn.Linear(1536, 128),
+            nn.ReLU()
+        )
+
+        if not value:
+            self.movement_head = nn.Sequential(
+                nn.Linear(128, 1),
+                nn.Sigmoid()
+            )
+
+            self.angle_head = nn.Sequential(
+                nn.Linear(128, 7),
+                nn.Softmax(dim=1)
+            )
+        else:
+            self.value_head = nn.Sequential(
+                nn.Linear(128, 1)
+            )
+
+    def forward(self, x, device="cpu"):
+        x = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
+        hidden = self.hidden_layers(x)
+        if not self.value:
+            movement = self.movement_head(hidden)
+            angle = self.angle_head(hidden)
+            return movement, angle
+        else:
+            return self.value_head(hidden)[0]
