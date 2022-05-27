@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 
+
 class PolicyNet(nn.Module):
     """ Neural network acting as policy function for the robot
         agent. The input of the net are two binary maps, where 1s
@@ -12,6 +13,7 @@ class PolicyNet(nn.Module):
         other representing the trajectory angle in [0, 180] as a
         classification problem using the softmax function.
     """
+
     def __init__(self):
         super(PolicyNet, self).__init__()
 
@@ -54,6 +56,7 @@ class TinyPolicyNet(nn.Module):
         locations (relatively to the original image), and 0s are
         assigned to non interesting locations.
     """
+
     def __init__(self):
         super(TinyPolicyNet, self).__init__()
 
@@ -85,6 +88,7 @@ class TinyPolicyNet(nn.Module):
 class ConvPolicyNet(nn.Module):
     """ TODO: add description
     """
+
     def __init__(self, value=False):
         super(ConvPolicyNet, self).__init__()
         self.value = value
@@ -116,6 +120,7 @@ class ConvPolicyNet(nn.Module):
 
     def forward(self, x, device="cpu"):
         x = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
+        print('x shape', x.shape)
         hidden = self.hidden_layers(x)
         if not self.value:
             movement = self.movement_head(hidden)
