@@ -1,7 +1,6 @@
 from PIL import Image
 import sys
 import cv2
-import time
 import numpy as np
 from PIL import Image
 

@@ -1,12 +1,9 @@
-import time
 import cv2
 import socket
-import pickle
 import numpy as np
 from PIL import Image
 from picarx import Picarx
 from picamera import PiCamera
-from io import BytesIO
 from color_detection import interpret_image
 
 class PiCarX():
@@ -29,9 +26,9 @@ class PiCarX():
 
 
         def change_velocity(self, velocity):
-        """
-        Change the current angular velocity of the robot's wheels
-        """
+            """
+                Change the current angular velocity of the robot's wheels
+            """
         self.angular_velocity = velocity
         self.px.forward(velocity)
 
@@ -52,7 +49,6 @@ class PiCarX():
         msg = state.tobytes()
         self.socket.send(msg)
         return self.socket.recv(1024).decode().split(";")
-
 
     def move(self, movement, angle, rt):
         # angle += 45  # test reduced actions
@@ -88,4 +84,3 @@ class PiCarX():
         self.socket.send(np.zeros(0).tobytes())
         self.socket.close()
         print("connection succesfully closed")
-

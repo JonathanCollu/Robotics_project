@@ -1,11 +1,9 @@
 import torch
 import socket
 import argparse
-import pickle
 import numpy as np
 from PIL import Image
-from io import BytesIO
-from Model import PolicyNet as Policy
+from Model import ConvPolicyNet as Policy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-parameters', action='store', type=str, default=None)
@@ -42,8 +40,8 @@ def main():
             img.save("images/img_cuboid2_" + str(count) + ".png")
             img = Image.fromarray((mask2_border * 255).astype(np.uint8))
             img.save("images/img_border2_" + str(count) + ".png")
-            try:
-            	m, a = policy.forward(np.vstack((mask1, mask2)))
+            try: 
+                m, a = policy.forward(np.vstack((mask1, mask2)))
             except: break
             m = m.round()
             a = a.argmax()
