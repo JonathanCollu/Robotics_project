@@ -1,16 +1,13 @@
+import time
 import cv2
 import socket
-import sys, os
+import pickle
 import numpy as np
-from utils import reset_mcu
+from PIL import Image
 from picarx import Picarx
 from picamera import PiCamera
+from io import BytesIO
 from color_detection import interpret_image
-
-""" TODO: Probably paths not right """
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
-sys.path.append(r'/home/pi/picar-x/lib') #?
-reset_mcu()
 
 class PiCarX():
     def __init__(self, host):
@@ -19,8 +16,9 @@ class PiCarX():
         self.angle = 0 # Pay attention: not in radians
         self.forward_vel = 1.2
         self.camera = PiCamera()
-        self.camera.resolution = (480, 360)
+        self.camera.resolution = (480, 368)
         self.camera.framerate = 24
+        self.camera.start_preview()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, 4242))
 
@@ -29,31 +27,33 @@ class PiCarX():
         k = cv2.waitKey(1) & 0xFF
         return k == 27
 
-    def change_velocity(self, velocity):
+
+        def change_velocity(self, velocity):
         """
         Change the current angular velocity of the robot's wheels
         """
         self.angular_velocity = velocity
         self.px.forward(velocity)
-        
+
     def change_angle(self, angle):
         self.angle = angle
         self.px.set_dir_servo_angle(angle)
     
     def read_image(self):
-        img = np.empty((480, 360, 3), dtype=np.uint8)
+        img = np.empty((480 * 368 * 3,), dtype=np.uint8)
         self.camera.capture(img, 'rgb')
-        return img.reshape((360, 480, 3))
+        return img.reshape((368, 480, 3))
     
     def detect_objects(self):
         img = self.read_image()
-        img = np.flip(img, axis=0)
         return interpret_image("green", "blue", img)
 
     def request_action(self, state):
-        self.socket.send(state.tobytes())
+        msg = state.tobytes()
+        self.socket.send(msg)
         return self.socket.recv(1024).decode().split(";")
-        
+
+
     def move(self, movement, angle, rt):
         # angle += 45  # test reduced actions
         # move the robot in env and return the collected reward
@@ -76,13 +76,16 @@ class PiCarX():
             diff = (0, 0)
         v = (base[0] + diff[0], base[1] + diff[1])
         self.change_velocity(v)
-        
+
     def act(self):
+        s_old = self.detect_objects()
         while True:
             if self.stop_if_done(): break
             s = self.detect_objects()
-            m, a = self.request_action(s)
+            m, a = self.request_action(np.vstack((s, s_old)))
             self.move(m, a)
+            s_old = s
         self.socket.send(np.zeros(0).tobytes())
         self.socket.close()
         print("connection succesfully closed")
+
