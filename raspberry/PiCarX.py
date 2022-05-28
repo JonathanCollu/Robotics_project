@@ -4,7 +4,8 @@ import socket
 import pickle
 import numpy as np
 from PIL import Image
-from picarx import Picarx
+import picar_4wd as fc
+#from picarx import Picarx
 from picamera import PiCamera
 from io import BytesIO
 from color_detection import interpret_image
@@ -12,10 +13,10 @@ from color_detection import interpret_image
 
 class PiCarX():
     def __init__(self, host):
-        self.px = Picarx()
+        #self.px = Picarx()
         self.angular_velocity = 0  # Pay attention: with Picarx, this is the motor power
         self.angle = 0  # Pay attention: not in radians
-        self.forward_vel = 1.2
+        self.forward_vel = 10
         self.camera = PiCamera()
         self.camera.resolution = (480, 368)
         self.camera.framerate = 24
@@ -33,11 +34,14 @@ class PiCarX():
         Change the current angular velocity of the robot's wheels
         """
         self.angular_velocity = velocity
-        self.px.forward(velocity)
+        fc.forward(velocity)
 
     def change_angle(self, angle):
         self.angle = angle
-        self.px.set_dir_servo_angle(angle)
+        if angle < 90:
+            fc.turn_left(self.forward_vel)
+        if angle > 90:
+            fc.turn_right(self.forward_vel)
 
     def read_image(self):
         img = np.empty((480 * 368 * 3,), dtype=np.uint8)
@@ -55,6 +59,7 @@ class PiCarX():
         return self.socket.recv(1024).decode().split(";")
 
     def move(self, movement, angle):
+        """
         # angle += 45  # test reduced actions
         # move the robot in env and return the collected reward
         if not movement:
@@ -65,16 +70,27 @@ class PiCarX():
             base = self.forward_vel
         max_diff = 1.89
         diff = abs(angle - 90) / 90 * max_diff
-        """
+
         if angle > 90:
             diff = (diff, 0)
         elif angle < 90:
             diff = (0, diff)
         else:
             diff = (0, 0)
-        """
+
         v = base + diff
+        print('velocity', v)
+        print('angle', angle)
         self.change_velocity(v)
+        self.change_angle(angle)
+        time.sleep(10)
+        """
+        if angle == 90:
+            fc.forward(self.forward_vel)
+        elif angle < 90:
+            fc.turn_left(self.forward_vel)
+        elif angle > 90:
+            fc.turn_right(self.forward_vel)
         time.sleep(10)
 
     def act(self):
