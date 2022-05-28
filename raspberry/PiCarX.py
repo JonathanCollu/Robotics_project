@@ -84,14 +84,48 @@ class PiCarX():
         self.change_velocity(v)
         self.change_angle(angle)
         time.sleep(10)
-        """
-        if angle == 90:
-            fc.forward(self.forward_vel)
-        elif angle < 90:
+
+        if angle < 90:
             fc.turn_left(self.forward_vel)
-        elif angle > 90:
+            time.sleep(10)
+            return
+        if angle > 90:
             fc.turn_right(self.forward_vel)
+            time.sleep(10)
+            return
+        fc.forward(self.forward_vel)
         time.sleep(10)
+        return
+        """
+        if angle == 0:
+            fc.turn_left(10)
+            time.sleep(1.1)
+            fc.stop()
+        elif angle == 1:
+            fc.turn_left(10)
+            time.sleep(1.1/90*14)
+            fc.stop()
+        elif angle == 2:
+            fc.turn_left(10)
+            time.sleep(1.1/90*7)
+            fc.stop()
+        elif angle == 4:
+            fc.turn_right(10)
+            time.sleep(1.1/90*7)
+            fc.stop()
+        elif angle == 5:
+            fc.turn_right(10)
+            time.sleep(1.1/90*14)
+            fc.stop()
+        elif angle == 6:
+            fc.turn_right(10)
+            time.sleep(1.1)
+            fc.stop()
+
+        if movement:
+            fc.forward(10)
+            time.sleep(1.1)
+            fc.stop()
 
     def act(self):
         s_old = self.detect_objects()
