@@ -133,7 +133,7 @@ class PiCarX(object):
         # save screenshot
         # image = Image.fromarray(img)
         # image.save('images/screenshot.png')
-        print(np.count_nonzero(~np.isnan(interpret_image("green", "blue", img))))
+        
         return interpret_image("green", "blue", img)
     
     def start_sim(self, connect):
@@ -204,7 +204,7 @@ class PiCarX(object):
                 # update stored cuboid position
                 self.cuboids[i] = pos
         if not moved_cuboid:
-            r -= 0.25
+            r -= 0.1
 
         # compute reward based on the optimality of the cuboids mask in s_next
         # 8000 was obtained as the sum of the product of a near optimal cuboids mask and the
@@ -267,6 +267,7 @@ class PiCarX(object):
         # check for new reward based on the cuboids after the action
         r, cleaned_cuboid = self.get_reward(s_next)
 
+        done = False
         # check if the agent got stuck, in that case neg. reward and done=True
         end_pos = self.env.get_object_position(self.car_handle)
         end_pos = [round(end_pos[0], self.pos_decimals), round(end_pos[1], self.pos_decimals)]
@@ -282,7 +283,9 @@ class PiCarX(object):
         if not self.is_in_area(self.env.get_object_position(self.car_handle)):
             r -= 1
             done = True
-        else:  # check if task is done (all cuboids fell outside the area)
+
+        # check if task is done (all cuboids fell outside the area)
+        if not done:
             done = all([self.cuboids[i][2] < 0 for i in range(self.cuboids_num)])
         
         # cut the trace after moving out a cuboid (to learn not to go outside afterwards)
@@ -296,8 +299,9 @@ class PiCarX(object):
             and applying attention mask
         """
         mask = cv2.distanceTransform((mask*255).astype(np.uint8), cv2.DIST_L2, 3)
-        #mask /= mask.max()
-        return self.attention_mask * (mask / mask.max())
+        if mask.max() != 0:
+            mask /= mask.max()
+        return self.attention_mask * mask
 
     def act(self, trials):
         self.start_sim(connect=False)
