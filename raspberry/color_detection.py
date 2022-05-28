@@ -4,6 +4,7 @@ import cv2
 import time
 import numpy as np
 from PIL import Image
+from copy import deepcopy
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -97,14 +98,33 @@ def interpret_image(ball_color, border_color, image):
     return mask
 
 
+def border_is_too_close(border_mask):
+    # find the lowest point of the border
+    noiseless_img = deepcopy(border_mask)
+    noiseless_img = np.array(noiseless_img * 255)
+    noiseless_img = np.uint8(noiseless_img)
+    noiseless_img = cv2.Canny(noiseless_img, 1, 100)
+    noiseless_img = cv2.fastNlMeansDenoising(noiseless_img, h=20)
+    # print(noiseless_img)
+    cv2.imwrite("noiseless_border_mask.png", noiseless_img)
+    border_bottom = -1
+    i = 0
+
+    for row in noiseless_img:
+        if 255 in row:
+            border_bottom = i
+            i += 1
+
+    # Considered image76.png (bottom_border=71) to be outside of the allowed
+    # area. When bottom_border <= 71, the border is too close
+    if border_bottom <= 35:
+        print(border_bottom)
+        return True
+    return False
+
+
 if __name__ == "__main__":
     src_img = cv2.imread('img-1.png')
-    """
-    img,img_2,img_3 =  color_detect(src_img,'red')  # Color detection function
-    cv2.imshow("video", img)    # OpenCV image show
-    cv2.imshow("mask", img_2)    # OpenCV image show
-    cv2.imshow("morphologyEx_img", img_3)    # OpenCV image show
-    """
 
     mask = interpret_image("green", "red", src_img)
     print(mask.shape)

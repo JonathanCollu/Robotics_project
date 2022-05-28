@@ -8,7 +8,7 @@ import picar_4wd as fc
 #from picarx import Picarx
 from picamera import PiCamera
 from io import BytesIO
-from color_detection import interpret_image
+from color_detection import interpret_image, border_is_too_close
 
 
 class PiCarX():
@@ -59,44 +59,6 @@ class PiCarX():
         return self.socket.recv(1024).decode().split(";")
 
     def move(self, movement, angle):
-        """
-        # angle += 45  # test reduced actions
-        # move the robot in env and return the collected reward
-        if not movement:
-            # to avoid having the robot stuck, the "stay still" action
-            # is replaced with "go forward" (i.e. movement=1 angle=90)
-            base = self.forward_vel if angle == 90 else 0
-        else:
-            base = self.forward_vel
-        max_diff = 1.89
-        diff = abs(angle - 90) / 90 * max_diff
-
-        if angle > 90:
-            diff = (diff, 0)
-        elif angle < 90:
-            diff = (0, diff)
-        else:
-            diff = (0, 0)
-
-        v = base + diff
-        print('velocity', v)
-        print('angle', angle)
-        self.change_velocity(v)
-        self.change_angle(angle)
-        time.sleep(10)
-
-        if angle < 90:
-            fc.turn_left(self.forward_vel)
-            time.sleep(10)
-            return
-        if angle > 90:
-            fc.turn_right(self.forward_vel)
-            time.sleep(10)
-            return
-        fc.forward(self.forward_vel)
-        time.sleep(10)
-        return
-        """
         if angle == 0:
             fc.turn_left(10)
             time.sleep(1.1)
@@ -124,7 +86,7 @@ class PiCarX():
 
         if movement:
             fc.forward(10)
-            time.sleep(1.1)
+            time.sleep(0.5)
             fc.stop()
 
     def act(self):
@@ -133,13 +95,19 @@ class PiCarX():
             if self.stop_if_done():
                 break
             s = self.detect_objects()
-            out = self.request_action(np.vstack((s, s_old)))
-            print(out)
-            m = int(out[0])
-            a = int(out[1])
-            self.move(m, a)
+            go_backwards = border_is_too_close(s[1])
+            print(go_backwards)
+            if go_backwards:
+                fc.backward(10)
+                time.sleep(2)
+                fc.stop()
+            else:
+                out = self.request_action(np.vstack((s, s_old)))
+                print(out)
+                m = int(out[0])
+                a = int(out[1])
+                self.move(m, a)
             s_old = s
-            self.change_velocity(0)
         self.socket.send(np.zeros(0).tobytes())
         self.socket.close()
         print("connection succesfully closed")
