@@ -133,7 +133,7 @@ class PiCarX(object):
         # save screenshot
         # image = Image.fromarray(img)
         # image.save('images/screenshot.png')
-
+        print(np.count_nonzero(~np.isnan(interpret_image("green", "blue", img))))
         return interpret_image("green", "blue", img)
     
     def start_sim(self, connect):
@@ -155,7 +155,7 @@ class PiCarX(object):
         except: pass
         self.start_sim(connect)
         self.set_cuboids_pos()
-        # self.randomize_positions()
+        self.randomize_positions()
         self.stuck_steps = 0
 
     def min_border_dist(self, point):
@@ -291,6 +291,14 @@ class PiCarX(object):
 
         return s_next, r, done
     
+    def transform_mask(self, mask):
+        """ Transform cuboids mask using distant transform
+            and applying attention mask
+        """
+        mask = cv2.distanceTransform((mask*255).astype(np.uint8), cv2.DIST_L2, 3)
+        #mask /= mask.max()
+        return self.attention_mask * (mask / mask.max())
+
     def act(self, trials):
         self.start_sim(connect=False)
         r_ep = []
@@ -303,7 +311,12 @@ class PiCarX(object):
                 with torch.no_grad():
                     self.policy.eval()
                     s = self.detect_objects()
-                    movement_prob, angles_dist = self.policy.forward(np.vstack((s, s_old)))
+                    s_transf = s.copy()
+                    s_transf[0] = self.transform_mask(s_transf[0])
+                    s_old_transf = s_old.copy()
+                    s_old_transf[0] = self.transform_mask(s_old_transf[0])
+                    stacked_state = np.vstack((s_transf, s_old_transf))
+                    movement_prob, angles_dist = self.policy.forward(stacked_state)
                     m = movement_prob.round()
                     a = angles_dist.argmax()
                     s_next, r, done = self.move(m, a)

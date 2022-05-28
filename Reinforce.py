@@ -78,7 +78,14 @@ class Reinforce():
         trace = []
         s = self.agent.detect_objects()
         s_old = s
+        #print(np.count_nonzero(~np.isnan(s)))
         for _ in range(self.T):
+            s_transf = s.copy()
+            #print(np.count_nonzero(~np.isnan(s_transf)))
+            s_transf[0] = self.agent.transform_mask(s_transf[0])
+            
+            s_old_transf = s_old.copy()
+            s_old_transf[0] = self.agent.transform_mask(s_old_transf[0])
             m, m_dist, a, a_dist = self.select_action(s, s_old)
             s_next, r, done = self.agent.move(m.item(), a.item())
             trace.append(((s, s_old), (m, a), r, (m_dist, a_dist)))
