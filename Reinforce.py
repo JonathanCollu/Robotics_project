@@ -29,11 +29,13 @@ class Reinforce():
         best_r_ep = -np.inf
         best_ep = 0
         saving_delay = 10
+        force_reset_ep = 50
 
         # start training
         self.agent.start_sim(connect=False)
         for epoch in range(self.epochs):
-            l, r = self.epoch(epoch % 10 == 0)
+            # l, r = self.epoch(epoch % force_reset_ep == 0)
+            l, r = self.epoch(reset=False)
             losses.append(l)
             rewards.append(r)
             print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
@@ -58,17 +60,10 @@ class Reinforce():
         # save losses and rewards
         np.save("exp_results/"+self.run_name, np.array([losses, rewards]))
     
-    def select_action(self, s):
+    def select_action(self, s, s_old):
         # get the probability distribution of the actions
-        if self.agent.policy.__class__.__name__ == "RedPolicyNet":
-            movement_prob, right_turn_prob, angles_dist = self.agent.policy.forward(s)
-            # sample right_turn=1 with prob=right_turn_prob
-            right_turn_dist = Bernoulli(right_turn_prob) 
-            right_turn = right_turn_dist.sample()
-        else:
-            movement_prob, angles_dist = self.agent.policy.forward(s)
-            right_turn_dist = None
-            right_turn = None
+        s = np.vstack((s, s_old))
+        movement_prob, angles_dist = self.agent.policy.forward(s)
         # sample movement=1 with prob=movement_prob
         movement_dist = Bernoulli(movement_prob) 
         movement = movement_dist.sample()
@@ -76,18 +71,22 @@ class Reinforce():
         angles_dist = Categorical(angles_dist)
         angle = angles_dist.sample()
 
-        return movement, movement_dist, angle, angles_dist, right_turn, right_turn_dist
+        return movement, movement_dist, angle, angles_dist
 
     def sample_trace(self):
         reward = 0
         trace = []
+        s = self.agent.detect_objects()
+        s_old = s
         for _ in range(self.T):
-            s = self.agent.detect_objects()
-            m, m_dist, a, a_dist, rt, rt_dist = self.select_action(s)
-            r, done = self.agent.move(m.item(), a.item(), None if rt is None else rt.item(), s)
-            trace.append((s, (m, a, rt), r, (m_dist, a_dist, rt_dist)))
+            m, m_dist, a, a_dist = self.select_action(s, s_old)
+            s_next, r, done = self.agent.move(m.item(), a.item())
+            trace.append(((s, s_old), (m, a), r, (m_dist, a_dist)))
             reward += r
-            if done:
+            s_old = s
+            s = s_next
+            if done is None: break
+            elif done:
                 self.agent.reset_env()
                 break
         trace.append((s, None, None, None))
@@ -98,39 +97,44 @@ class Reinforce():
         if reset:
             self.agent.reset_env()
         loss = torch.tensor([0], dtype=torch.float32) 
+        loss_v = torch.tensor([0], dtype=torch.float32)
         reward = 0
         for m in range(self.M):
-            # if m in [1,2]:  # for testing the reset env after done=True
-                # self.agent.reset_env()
             h0, reward_t = self.sample_trace()
             reward += reward_t
             R = 0
             # len-2 reason: -1 for having 0..len-1 and -1 for skipping last state
             for t in range(len(h0) - 2, -1, -1):
                 R = h0[t][2] + self.gamma * R
-                loss_m = -h0[t][3][0].log_prob(h0[t][1][0])[0]  #-torch.log(h0[t][3][0][h0[t][1][0]])[0]
+                
+                loss_m = -h0[t][3][0].log_prob(h0[t][1][0])[0]
                 loss_a = -h0[t][3][1].log_prob(h0[t][1][1])
-                if h0[t][3][2] is not None:  # use right_turn output head (e.g. RedPolicyNet)
-                    loss_rt = -h0[t][3][2].log_prob(h0[t][1][2])[0]  # right turn loss
-                    if self.entropy_factor is not None:
-                        rt_entropy = h0[t][3][0].entropy()[0]
-                    else: rt_entropy = 0
-                else: loss_rt = 0
-                loss += R * (loss_m + loss_a + loss_rt)
+
+                if self.agent.value_net is not None:
+                    v = self.agent.value_net.forward(np.vstack(h0[t][0]))
+                    loss_v += torch.square(R - v)
+                    v = v.detach()
+                else:
+                    v = 0
+                
+                loss += (R - v) * (loss_m + loss_a)
                 if self.entropy_factor is not None:
-                    loss += self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy() + rt_entropy)
+                    loss += self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy())
         loss /= self.M
+        loss_v /= self.M
         reward /= self.M
-        self.train(loss)
+        self.train(self.agent.policy, self.agent.optimizer, loss)
+        if self.agent.value_net is not None:
+            self.train(self.agent.value_net, self.agent.optimizer_v, loss_v)
         return loss.item(), reward
 
-    def train(self, loss):
+    def train(self, model, optimizer, loss):
         # set model to train
-        self.agent.policy.train()
+        model.train()
         # compute gradient of loss
-        self.agent.optimizer.zero_grad()
+        optimizer.zero_grad()
         loss.backward()
         # clip gradient
-        torch.nn.utils.clip_grad_norm_(self.agent.policy.parameters(), 10)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         # update weigths
-        self.agent.optimizer.step()
+        optimizer.step()
