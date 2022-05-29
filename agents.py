@@ -94,17 +94,14 @@ class PiCarX(object):
         for i, cuboid_handle in enumerate(self.cuboids_handles):
             p0 = np.random.uniform(self.area_min[0] + 0.1, self.area_max[0] - 0.1)
             p1 = np.random.uniform(self.area_min[1] + 0.1, self.area_max[1] - 0.1)
-            a = 0
             while True:
-                a += 1
-                if a >= 100: exit()
                 pos_allowed = self.is_pos_allowed(i, [p0, p1])
                 if pos_allowed[0]: break
                 elif pos_allowed[1] == 0:
                     p0 = np.random.uniform(self.area_min[0] + 0.1, self.area_max[0] - 0.1)
                 elif pos_allowed[1] == 1:
                     p1 = np.random.uniform(self.area_min[1] + 0.1, self.area_max[1] - 0.1)
-            self.cuboids[i] = (round(p0, self.pos_decimals), round(p0, self.pos_decimals), self.cuboids[i][2])
+            self.cuboids[i] = (round(p0, self.pos_decimals), round(p1, self.pos_decimals), self.cuboids[i][2])
             self.env.set_object_position(cuboid_handle, self.cuboids[i])
 
     def change_velocity(self, velocities, target=None):
@@ -174,7 +171,7 @@ class PiCarX(object):
             return False
         return True
 
-    def get_reward(self, s_next):
+    def get_reward(self, s_next, action):
         r = 0
         # compute reward based on the positions of the moved cuboids
         moved_cuboid = False  # has moved at least a cuboid
@@ -200,7 +197,8 @@ class PiCarX(object):
                     if movement_gain > 0:
                         r += 1 - (self.min_border_dist(pos) / ((self.area_max[0]-self.area_min[0])/2))
                     elif movement_gain < 0:
-                        r -= self.min_border_dist(pos) / ((self.area_max[0]-self.area_min[0])/2)
+                        r += 0.5 *(1 - (self.min_border_dist(pos) / ((self.area_max[0]-self.area_min[0])/2)))  # test
+                        # r -= self.min_border_dist(pos) / ((self.area_max[0]-self.area_min[0])/2)
                     # print("cuboid", i, "changed")
                 # update stored cuboid position
                 self.cuboids[i] = pos
@@ -213,7 +211,12 @@ class PiCarX(object):
             last_r_cuboids_mask = r_cuboids_mask
         else:
             last_r_cuboids_mask = (self.last_cuboids_mask * self.attention_mask).sum() / 8000
-        r += r_cuboids_mask - last_r_cuboids_mask
+        if self.last_cuboids_mask is not None and self.last_cuboids_mask.sum() > 0:
+            cub_mask_gain = r_cuboids_mask - last_r_cuboids_mask            
+            if action in range(3, 8):  # if agent moved forward -> normal gain
+                r += cub_mask_gain
+            elif action in [0, 1, 2, 8, 9, 10]:  # if agent rotated without moving -> only negative gain
+                r += min(0, cub_mask_gain)
         self.last_cuboids_mask = s_next[0]
 
         if r_cuboids_mask == 0 and not moved_cuboid:
@@ -260,7 +263,7 @@ class PiCarX(object):
         s_next = self.detect_objects()
 
         # check for new reward based on the cuboids after the action
-        r, cleaned_cuboid = self.get_reward(s_next)
+        r, cleaned_cuboid = self.get_reward(s_next, action)
 
         done = False
         # check if the agent got stuck, in that case neg. reward and done=True
