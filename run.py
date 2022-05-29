@@ -9,6 +9,7 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-run_name', action='store', type=str, default=None)
+    parser.add_argument('-cp_name', action='store', type=str, default=None)
     parser.add_argument('-rb_size', action='store', type=int, default=10)
     parser.add_argument('-batch_size', action='store', type=int, default=3)
     parser.add_argument('-epochs', action='store', type=int, default=10)
@@ -24,11 +25,11 @@ if __name__ == "__main__":
 
     plt.ion()
     model = ConvQNet()
-    #if args.cp_name is not None:
-    #    state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
-    #    for name, param in state_dict.items():
-    #        if "hidden_layers.1" in name or "hidden_layers.2" in name:
-    #            policy.load_state_dict({name: param}, strict=False)
+    if args.cp_name is not None:
+       state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
+       for name, param in state_dict.items():
+            if "hidden_layers.1" in name or "hidden_layers.2" in name:
+                model.load_state_dict({name: param}, strict=False)
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
     loss = torch.nn.MSELoss()
     batch_size = min(args.rb_size, args.batch_size)
