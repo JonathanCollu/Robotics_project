@@ -52,7 +52,7 @@ class DQL:
         # tensor of total reward for every possible action
         self.epsilon = epsilon
         self.temp = temp
-        self.model = self.agent.policy
+        self.model = self.agent.policy.double()
         # create an identical separated model updated as self.model each episode
         self.target_model = deepcopy(self.model) if target_model else self.model
         self.tm_wait = tm_wait
@@ -69,15 +69,16 @@ class DQL:
         rewards = []
         losses = []
         best_ep = -np.inf
-        saving_delay = 10
+        saving_delay = 1
         for epoch in range(self.n_episodes):
             l, r = self.episode(epoch, reset=False)
             losses.append(l)
             rewards.append(r)
-            print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
+            # print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
             if rewards[-1] >= best_ep:
                 best_ep = rewards[-1]
-                self.save_checkpoint(losses, rewards, epoch, epoch-best_ep)
+                if self.run_name is not None:
+                    self.save_checkpoint(losses, rewards, epoch, epoch-best_ep)
                 best_ep = epoch
                 print("New max reward in episode:", best_ep)
             if self.run_name is not None and epoch % saving_delay == 0:
@@ -105,22 +106,21 @@ class DQL:
 
     def training_step(self):
         # draw batch of experiences from replay buffer
-        sampled_exp = random.sample(self.rb, k=1)
-        s_exp, m_exp, a_exp, r_exp, s_next_exp = zip(*sampled_exp)
-        m_exp = torch.stack(m_exp)
+        sampled_exp = random.sample(self.rb, k=self.batch_size)
+        s_exp, a_exp, r_exp, s_next_exp, done_exp = zip(*sampled_exp)
+        s_exp = torch.stack(s_exp)
+        s_next_exp = torch.stack(s_next_exp)
         a_exp = torch.stack(a_exp)
         r_exp = torch.stack(r_exp)
+        done_exp = torch.stack(done_exp)
         # compute q values for current and next states using dnn
         self.model.train()
-        q_exp = self.model.forward(np.array(s_exp)[0,:,:,:])#.gather(1, a_exp.view(-1, 1)).view(-1)
+        q_exp = self.model.forward(s_exp).gather(1, a_exp.view(-1, 1)).view(-1)
         with torch.no_grad():
-            self.model.eval()
             self.target_model.eval()
-            q_exp_target = self.target_model.forward(np.array(s_next_exp)[0,:,:,:])
+            q_exp_target = self.target_model.forward(s_next_exp).detach().max(1)[0]
         # compute mean loss of the batch
-        #print(r_exp)
-        loss = self.loss(q_exp[0] + q_exp[1], r_exp + self.gamma*q_exp_target[0] + self.gamma*q_exp_target[1])
-        #loss += self.loss(q_exp[1], r_exp + self.gamma*q_exp_target[1])
+        loss = self.loss(q_exp, r_exp + self.gamma*q_exp_target*~done_exp)
         # compute gradient of loss
         self.agent.optimizer.zero_grad()
         loss.backward()
@@ -151,20 +151,20 @@ class DQL:
                 self.update_target()
             # Select action using the behaviour policy
             s_transf = s.copy()
-            s_transf[0] = self.agent.transform_mask(s_transf[0])  
+            s_transf[0] = self.agent.transform_mask(s_transf[0])
             s_old_transf = s_old.copy()
             s_old_transf[0] = self.agent.transform_mask(s_old_transf[0])
-            m, a = self.select_action(s_transf, s_old_transf)
-            # Execute action a in emulator and observe reward r and next state s_next
-            # The basic reward is always 1 (even if done is True)
-            s_next, r, done = self.agent.move(m.item(), a.item())
+            a = self.select_action(s_transf, s_old_transf)
+            # Execute action in emulator and observe reward r and next state s_next
+            s_next, r, done = self.agent.move(a.item())
             r_ep += r
-            s_next_transf = s.copy()
+            s_next_transf = s_next.copy()
             s_next_transf[0] = self.agent.transform_mask(s_next_transf[0])
             # add experience to replay buffer (as torch tensors)
-            self.rb.append((np.vstack([s_transf, s_old_transf]), a, m, 
-                torch.tensor(r, dtype=torch.float32), 
-                np.vstack([s_next_transf, s_transf])))
+            self.rb.append((torch.tensor(np.vstack([s_transf, s_old_transf])), a,
+                torch.tensor(r, dtype=torch.float32),
+                torch.tensor(np.vstack([s_next_transf, s_transf])),
+                torch.tensor(done, dtype=torch.bool)))
             # set next state as the new current state
             s_old = s
             s = s_next
@@ -177,17 +177,17 @@ class DQL:
             # execute a training step on the DQN
             loss_ep += self.training_step()
         
-        if not (ep+1 % 5):
-            print(f"[{ep+1}] Episode mean loss: {round(loss_ep/ts_ep, 4)} | Episode reward: {r_ep}")
+            # if (ep+1 % 1) == 0:
+            print(f"[{ep+1}|{ts_ep}] Episode mean loss: {round(loss_ep/ts_ep, 4)} | Episode reward: {r_ep}")
         
         return loss_ep, r_ep
 
     def select_action(self, s, s_old):
         # Select a behaviour policy between epsilon-greedy and softmax (boltzmann)
-        s = np.vstack((s, s_old))
+        s = torch.tensor(np.vstack((s, s_old))).unsqueeze(0)
         with torch.no_grad():
             self.model.eval()
-            m, q_values = self.model.forward(s)
+            q_values = self.model.forward(s)
 
         if self.policy == "egreedy":
             if self.epsilon is None:
@@ -211,11 +211,9 @@ class DQL:
                 raise KeyError("Provide a temperature")
 
             # we use the provided softmax function in Helper.py
-            probs = softmax(q_values, torch.tensor([self.temp], device=self.device))[0].cpu().detach().numpy()
+            probs = softmax(q_values, torch.tensor([self.temp]))[0].cpu().detach().numpy()
             a = torch.tensor(np.random.choice(range(0, self.env.action_space.n), p=probs), dtype=torch.int64)
         else:
             exit("Please select an existent behaviour policy")
         
-        m = Bernoulli(m).sample() 
-        
-        return m, a
+        return a

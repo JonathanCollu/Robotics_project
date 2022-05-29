@@ -34,7 +34,7 @@ if __name__ == "__main__":
                 value_net.load_state_dict({name: param}, strict=False)
     optimizer_v = torch.optim.Adam(value_net.parameters(), lr=1e-3)
 
-    agent = PiCarX(policy, optimizer, value_net, optimizer_v, 3)
+    agent = PiCarX(policy, optimizer, value_net, optimizer_v, 10)
     
     try:
         agent.train(args.epochs, args.M, args.T, args.gamma, ef=args.ef, run_name=args.run_name)

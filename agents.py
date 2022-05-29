@@ -48,8 +48,8 @@ class PiCarX(object):
         self._motor_names = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
         self._motor_handles = [self.env.get_handle(x) for x in self._motor_names]
         self.angles = [0, 76, 83, 90, 97, 104, 180]
-        # self.forward_vel = (1.2, 1.2)
-        self.forward_vel = (6, 6)  # speedrun
+        self.forward_vel = (2.5, 2.5)
+        # self.forward_vel = (6, 6)  # speedrun
         self.stuck_steps = 0
 
     def set_cuboids_pos(self):
@@ -215,7 +215,6 @@ class PiCarX(object):
         self.last_cuboids_mask = s_next[0]
 
         if r_cuboids_mask == 0 and not moved_cuboid:
-            print("neg time rew")
             r -= 0.1
         
         return r, cleaned_cuboid
@@ -231,35 +230,27 @@ class PiCarX(object):
         self.change_velocity((diff, 0))
         time.sleep(duration)
 
-    def move(self, movement, angle):
-        # set angle and base velocity
+    def move(self, angle):
+        # set angle
         angle = self.angles[angle]
-        if not movement:
-            # to avoid having the robot stuck, the "stay still" action
-            # is replaced with "go forward" (i.e. movement=1 angle=90)
-            if angle == 90:
-                base = self.forward_vel
-            else:
-                base = (0, 0)
-        else:
-            base = self.forward_vel
 
         # store position of agent before action
         start_pos = self.env.get_object_position(self.car_handle)
         start_pos = [round(start_pos[0], self.pos_decimals), round(start_pos[1], self.pos_decimals)]
         
         # perform action in the environment
-        # max_v = ??
-        max_v = 6  # speedrun
-        v = abs(angle - 90) / 90 * max_v
-        if angle > 90:
+        if angle != 90:  # do a rotation
+            max_v = 2.5
+            # max_v = 6  # speedrun
+            v = (angle - 90) / 90 * max_v
             self.change_velocity((v, -v))
-        elif angle < 90:
-            self.change_velocity((-v, v))
-        time.sleep(0.235)
-        if base != (0, 0):
-            self.change_velocity(base)
-            time.sleep(0.265)
+            time.sleep(0.4)
+            # time.sleep(0.235)  # speedrun
+        else:  # move forward
+            self.change_velocity(self.forward_vel)
+            time.sleep(0.4)
+            # time.sleep(0.265)  # speedrun
+        # reset velocity to (0, 0)
         self.change_velocity((0, 0))
 
         # get new state observation
@@ -339,21 +330,21 @@ class PiCarX(object):
     def calibrate(self):
         # testing for movement calibration
         self.start_sim(connect=False)
-        base = (6, 6)
-        # base = (0, 0)
-        angle = 0
-        for i in range(1):
-            # max_v = ??
-            max_v = 6
-            v = abs(angle - 90) / 90 * max_v
-            if angle > 90:
+        angle = 180
+        for i in range(2):
+            # perform action in the environment
+            if angle != 90:  # do a rotation
+                max_v = 2.5
+                # max_v = 6  # speedrun
+                v = (angle - 90) / 90 * max_v
                 self.change_velocity((v, -v))
-            elif angle < 90:
-                self.change_velocity((-v, v))
-            time.sleep(0.235)
-            if base != (0, 0):
-                self.change_velocity(base)
-                time.sleep(0.265)
+                time.sleep(0.4)
+                # time.sleep(0.235)  # speedrun
+            else:  # move forward
+                self.change_velocity(self.forward_vel)
+                time.sleep(0.4)
+                # time.sleep(0.265)  # speedrun
+            # reset velocity to (0, 0)
             self.change_velocity((0, 0))
         time.sleep(2)
 

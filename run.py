@@ -1,5 +1,5 @@
 from src.agents import PiCarX
-from src.Model import ConvPolicyNet
+from src.Model import ConvQNet
 import settings
 import time
 import matplotlib.pyplot as plt
@@ -8,25 +8,22 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-run_name', action='store', type=str, default="trial")
-
-    # parse DQL parameters
-    parser.add_argument('-rb_size', action='store', type=int, default=10000)
-    parser.add_argument('-batch_size', action='store', type=int, default=128)
-    parser.add_argument('-epochs', action='store', type=int, default=10000)
+    parser.add_argument('-run_name', action='store', type=str, default=None)
+    parser.add_argument('-rb_size', action='store', type=int, default=10)
+    parser.add_argument('-batch_size', action='store', type=int, default=3)
+    parser.add_argument('-epochs', action='store', type=int, default=10)
     parser.add_argument('-gamma', action='store', type=float, default=0.99)
     parser.add_argument('-target_model', action='store_true')
-    parser.add_argument('-tm_wait', action='store', type=int, default=10)
+    parser.add_argument('-tm_wait', action='store', type=int, default=2)
     parser.add_argument('-policy', action='store', type=str, default="egreedy")
-    # remember to pass epsilon values as floats cause parser is stupid..
     parser.add_argument('-epsilon', action='store', type=float, 
-                        nargs="+", default=[0.02, 0.99, 200.])
+                        nargs="+", default=[0.1, 0.99, 200.])
     parser.add_argument('-temp', action='store', type=float, default=0.1)
     args = parser.parse_args()
 
 
     plt.ion()
-    model = ConvPolicyNet()
+    model = ConvQNet()
     #if args.cp_name is not None:
     #    state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
     #    for name, param in state_dict.items():
