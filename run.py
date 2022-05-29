@@ -8,36 +8,45 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-run_name', action='store', type=str, default=None)
-    parser.add_argument('-cp_name', action='store', type=str, default=None)
-    parser.add_argument('-epochs', action='store', type=int, default=1000)
-    parser.add_argument('-M', action='store', type=int, default=1)
-    parser.add_argument('-T', action='store', type=int, default=7)
+    parser.add_argument('-run_name', action='store', type=str, default="trial")
+
+    # parse DQL parameters
+    parser.add_argument('-rb_size', action='store', type=int, default=10000)
+    parser.add_argument('-batch_size', action='store', type=int, default=128)
+    parser.add_argument('-epochs', action='store', type=int, default=10000)
     parser.add_argument('-gamma', action='store', type=float, default=0.99)
-    parser.add_argument('-ef', action='store', type=float, default=None)
+    parser.add_argument('-target_model', action='store_true')
+    parser.add_argument('-tm_wait', action='store', type=int, default=10)
+    parser.add_argument('-policy', action='store', type=str, default="egreedy")
+    # remember to pass epsilon values as floats cause parser is stupid..
+    parser.add_argument('-epsilon', action='store', type=float, 
+                        nargs="+", default=[0.02, 0.99, 200.])
+    parser.add_argument('-temp', action='store', type=float, default=0.1)
     args = parser.parse_args()
 
+
     plt.ion()
-    policy = ConvPolicyNet()
-    if args.cp_name is not None:
-        state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
-        for name, param in state_dict.items():
-            if "hidden_layers.1" in name or "hidden_layers.2" in name:
-                policy.load_state_dict({name: param}, strict=False)
-    optimizer = torch.optim.Adam(policy.parameters(), lr=3e-4)
+    model = ConvPolicyNet()
+    #if args.cp_name is not None:
+    #    state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
+    #    for name, param in state_dict.items():
+    #        if "hidden_layers.1" in name or "hidden_layers.2" in name:
+    #            policy.load_state_dict({name: param}, strict=False)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    loss = torch.nn.MSELoss()
+    batch_size = min(args.rb_size, args.batch_size)
 
-    value_net = ConvPolicyNet(value=True)
-    if args.cp_name is not None:
-        state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
-        for name, param in state_dict.items():
-            if "hidden_layers.1" in name or "hidden_layers.2" in name:
-                value_net.load_state_dict({name: param}, strict=False)
-    optimizer_v = torch.optim.Adam(value_net.parameters(), lr=1e-3)
+    if len(args.epsilon) > 1:
+        epsilon = tuple(args.epsilon)
+    else: epsilon = args.epsilon[0]
 
-    agent = PiCarX(policy, optimizer, value_net, optimizer_v, 3)
+
+    agent = PiCarX(model, optimizer, 3)
     
     try:
-        agent.train(args.epochs, args.M, args.T, args.gamma, ef=args.ef, run_name=args.run_name)
+        agent.train(rb_size=args.rb_size, batch_size=batch_size, n_episodes=args.epochs, 
+        loss=loss, gamma=args.gamma, policy=args.policy, epsilon=epsilon, temp=args.temp, target_model=args.target_model, tm_wait=args.tm_wait, 
+        run_name=args.run_name)  
     except KeyboardInterrupt:
         print('\n\nInterrupted! Time: {}s'.format(time.time()))
 

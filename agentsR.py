@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from src.color_detection import interpret_image
-from src.DQL import DQL
+from src.Reinforce import Reinforce
 from src.env import VrepEnvironment
 from src.libs.sim.simConst import sim_boolparam_display_enabled
 
@@ -18,11 +18,13 @@ if settings.draw_dist:
     plt.figure()
 
 class PiCarX(object):
-    def __init__(self, policy, optimizer, cuboids_num):
+    def __init__(self, policy, optimizer, value_net, optimizer_v, cuboids_num):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
         self.env.connect()
         self.policy = policy
         self.optimizer = optimizer
+        self.value_net = value_net
+        self.optimizer_v = optimizer_v
         self.area_min = (-2, -2)
         self.area_max = (2, 2)
         # self.area_min = (-1.25, -1.25)
@@ -102,7 +104,7 @@ class PiCarX(object):
                     p0 = np.random.uniform(self.area_min[0] + 0.1, self.area_max[0] - 0.1)
                 elif pos_allowed[1] == 1:
                     p1 = np.random.uniform(self.area_min[1] + 0.1, self.area_max[1] - 0.1)
-            self.cuboids[i] = (round(p0, self.pos_decimals), round(p0, self.pos_decimals), self.cuboids[i][2])
+            self.cuboids[i] = (p0, p1, self.cuboids[i][2])
             self.env.set_object_position(cuboid_handle, self.cuboids[i])
 
     def change_velocity(self, velocities, target=None):
@@ -231,7 +233,7 @@ class PiCarX(object):
         self.change_velocity((diff, 0))
         time.sleep(duration)
 
-    def move(self, movement, angle):
+    def move(self, movement, angle, duration=0.5):
         # set angle and base velocity
         angle = self.angles[angle]
         if not movement:
@@ -357,22 +359,9 @@ class PiCarX(object):
             self.change_velocity((0, 0))
         time.sleep(2)
 
-    def train(self,
-            loss,
-            use_rb=True,
-            batch_size = 5,
-            rb_size = 20,
-            n_episodes = 100,
-            gamma = 1,
-            policy = "egreedy",
-            epsilon = None,
-            temp = None,
-            target_model = False,
-            tm_wait = 10,
-            run_name = None):
+    def train(self, epochs, M, T, gamma, ef=None, run_name=None):
         print('Starting training...')
-        dql = DQL(self, loss, use_rb, batch_size, rb_size, n_episodes, gamma,
-                     policy, epsilon, temp, target_model, tm_wait, run_name)
-        rewards = dql()
+        reinforce = Reinforce(self, epochs, M, T, gamma, ef, run_name)
+        rewards = reinforce()
         return rewards
         # self.calibrate()
