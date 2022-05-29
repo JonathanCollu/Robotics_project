@@ -80,7 +80,7 @@ class ConvQNet(nn.Module):
         self.q_head = nn.Sequential(
                 nn.Linear(1536, 128),
                 nn.ReLU(),
-                nn.Linear(128, 7)
+                nn.Linear(128, 11)
         )
 
     def forward(self, x, device="cpu"):

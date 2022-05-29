@@ -47,7 +47,9 @@ class PiCarX(object):
         self.cam_handle = self.env.get_handle('Vision_sensor')
         self._motor_names = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
         self._motor_handles = [self.env.get_handle(x) for x in self._motor_names]
-        self.angles = [0, 76, 83, 90, 97, 104, 180]
+        self.angles = [(0, False), (76, False), (83, False),  # rotate left
+        (76, True), (83, True), (90, True), (97, True), (104, True),  # rotate + move
+        (97, False), (104, False), (180, False)]  # rotate right
         self.forward_vel = (2.5, 2.5)
         # self.forward_vel = (6, 6)  # speedrun
         self.stuck_steps = 0
@@ -230,9 +232,10 @@ class PiCarX(object):
         self.change_velocity((diff, 0))
         time.sleep(duration)
 
-    def move(self, angle):
+    def move(self, action):
         # set angle
-        angle = self.angles[angle]
+        angle = self.angles[action][0]
+        move = self.angles[action][1]
 
         # store position of agent before action
         start_pos = self.env.get_object_position(self.car_handle)
@@ -246,7 +249,7 @@ class PiCarX(object):
             self.change_velocity((v, -v))
             time.sleep(0.4)
             # time.sleep(0.235)  # speedrun
-        else:  # move forward
+        if move:  # move forward
             self.change_velocity(self.forward_vel)
             time.sleep(0.4)
             # time.sleep(0.265)  # speedrun
