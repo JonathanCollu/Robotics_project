@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from src.color_detection import interpret_image
-from src.DQL import DQL
+from src.Reinforce import Reinforce
 from src.env import VrepEnvironment
 from src.libs.sim.simConst import sim_boolparam_display_enabled
 
@@ -18,11 +18,13 @@ if settings.draw_dist:
     plt.figure()
 
 class PiCarX(object):
-    def __init__(self, policy, optimizer, cuboids_num):
+    def __init__(self, policy, optimizer, value_net, optimizer_v, cuboids_num):
         self.env = VrepEnvironment(settings.SCENES + '/environment.ttt')
         self.env.connect()
         self.policy = policy
         self.optimizer = optimizer
+        self.value_net = value_net
+        self.optimizer_v = optimizer_v
         self.area_min = (-2, -2)
         self.area_max = (2, 2)
         # self.area_min = (-1.25, -1.25)
@@ -48,8 +50,8 @@ class PiCarX(object):
         self._motor_names = ['Pioneer_p3dx_leftMotor', 'Pioneer_p3dx_rightMotor']
         self._motor_handles = [self.env.get_handle(x) for x in self._motor_names]
         self.angles = [0, 76, 83, 90, 97, 104, 180]
-        # self.forward_vel = (1.2, 1.2)
-        self.forward_vel = (6, 6)  # speedrun
+        self.forward_vel = (2.5, 2.5)
+        # self.forward_vel = (6, 6)  # speedrun
         self.stuck_steps = 0
 
     def set_cuboids_pos(self):
@@ -102,7 +104,7 @@ class PiCarX(object):
                     p0 = np.random.uniform(self.area_min[0] + 0.1, self.area_max[0] - 0.1)
                 elif pos_allowed[1] == 1:
                     p1 = np.random.uniform(self.area_min[1] + 0.1, self.area_max[1] - 0.1)
-            self.cuboids[i] = (round(p0, self.pos_decimals), round(p0, self.pos_decimals), self.cuboids[i][2])
+            self.cuboids[i] = [round(p0, self.pos_decimals), round(p1, self.pos_decimals), self.cuboids[i][2]]
             self.env.set_object_position(cuboid_handle, self.cuboids[i])
 
     def change_velocity(self, velocities, target=None):
@@ -215,7 +217,6 @@ class PiCarX(object):
         self.last_cuboids_mask = s_next[0]
 
         if r_cuboids_mask == 0 and not moved_cuboid:
-            print("neg time rew")
             r -= 0.1
         
         return r, cleaned_cuboid
@@ -231,7 +232,7 @@ class PiCarX(object):
         self.change_velocity((diff, 0))
         time.sleep(duration)
 
-    def move(self, movement, angle):
+    def move(self, movement, angle, duration=0.5):
         # set angle and base velocity
         angle = self.angles[angle]
         if not movement:
@@ -248,18 +249,21 @@ class PiCarX(object):
         start_pos = self.env.get_object_position(self.car_handle)
         start_pos = [round(start_pos[0], self.pos_decimals), round(start_pos[1], self.pos_decimals)]
         
-        # perform action in the environment
-        # max_v = ??
-        max_v = 6  # speedrun
-        v = abs(angle - 90) / 90 * max_v
-        if angle > 90:
+        # perform action in the environment:
+        # first do a rotation if needed
+        if angle != 90:
+            max_v = 2.5
+            # max_v = 6  # speedrun
+            v = (angle - 90) / 90 * max_v
             self.change_velocity((v, -v))
-        elif angle < 90:
-            self.change_velocity((-v, v))
-        time.sleep(0.235)
+            time.sleep(0.4)
+            # time.sleep(0.235)  # speedrun
+        # then move forward if needed
         if base != (0, 0):
             self.change_velocity(base)
-            time.sleep(0.265)
+            time.sleep(0.4)
+            # time.sleep(0.265)  # speedrun
+        # reset velocity to (0, 0)
         self.change_velocity((0, 0))
 
         # get new state observation
@@ -339,30 +343,31 @@ class PiCarX(object):
     def calibrate(self):
         # testing for movement calibration
         self.start_sim(connect=False)
-        base = (6, 6)
+        base = (2.5, 2.5)
+        # base = (1.2, 1.2)
         # base = (0, 0)
-        angle = 0
+        # [0, 76, 83, 90, 97, 104, 180]
+        angle = 83
         for i in range(1):
-            # max_v = ??
-            max_v = 6
+            max_v = 2.5
+            # max_v = 6
             v = abs(angle - 90) / 90 * max_v
             if angle > 90:
                 self.change_velocity((v, -v))
             elif angle < 90:
                 self.change_velocity((-v, v))
-            time.sleep(0.235)
+            time.sleep(0.4)
+            # time.sleep(0.235)
             if base != (0, 0):
                 self.change_velocity(base)
-                time.sleep(0.265)
+                time.sleep(0.4)
+                # time.sleep(0.265)
             self.change_velocity((0, 0))
         time.sleep(2)
 
-    def train(self, loss, use_rb=True, batch_size = 5, rb_size = 20, n_episodes = 100,
-              gamma = 1, policy = "egreedy", epsilon = None, temp = None,
-              target_model = False, tm_wait = 10, run_name = None):
+    def train(self, epochs, M, T, gamma, ef=None, run_name=None):
         print('Starting training...')
-        dql = DQL(self, loss, use_rb, batch_size, rb_size, n_episodes, gamma,
-                     policy, epsilon, temp, target_model, tm_wait, run_name)
-        rewards = dql()
+        reinforce = Reinforce(self, epochs, M, T, gamma, ef, run_name)
+        rewards = reinforce()
         return rewards
         # self.calibrate()

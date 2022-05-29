@@ -41,8 +41,10 @@ class Reinforce():
             print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
             if rewards[-1] >= best_r_ep:
                 best_r_ep = rewards[-1]
-                best_ep = epoch
                 print("New max reward in episode:", best_r_ep)
+                if self.run_name is not None:
+                    self.save_checkpoint(losses, rewards, epoch, epoch-best_ep)
+                best_ep = epoch
             if self.run_name is not None and epoch % saving_delay == 0:
                 self.save_checkpoint(losses, rewards, epoch, saving_delay)
 
@@ -78,11 +80,9 @@ class Reinforce():
         trace = []
         s = self.agent.detect_objects()
         s_old = s
-        #print(np.count_nonzero(~np.isnan(s)))
         for _ in range(self.T):
             s_transf = s.copy()
             s_transf[0] = self.agent.transform_mask(s_transf[0])  
-            #print(np.count_nonzero(~np.isnan(s_transf)))
             s_old_transf = s_old.copy()
             s_old_transf[0] = self.agent.transform_mask(s_old_transf[0])
             m, m_dist, a, a_dist = self.select_action(s_transf, s_old_transf)
@@ -141,6 +141,6 @@ class Reinforce():
         optimizer.zero_grad()
         loss.backward()
         # clip gradient
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
         # update weigths
         optimizer.step()
