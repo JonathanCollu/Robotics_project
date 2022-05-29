@@ -106,11 +106,10 @@ class DQL:
     def training_step(self):
         # draw batch of experiences from replay buffer
         sampled_exp = random.sample(self.rb, k=1)
-        s_exp, m_exp, a_exp, r_exp, s_next_exp, done_exp = zip(*sampled_exp)
+        s_exp, m_exp, a_exp, r_exp, s_next_exp = zip(*sampled_exp)
         m_exp = torch.stack(m_exp)
         a_exp = torch.stack(a_exp)
         r_exp = torch.stack(r_exp)
-        done_exp = torch.stack(done_exp)
         # compute q values for current and next states using dnn
         self.model.train()
         q_exp = self.model.forward(np.array(s_exp)[0,:,:,:])#.gather(1, a_exp.view(-1, 1)).view(-1)
@@ -165,8 +164,7 @@ class DQL:
             # add experience to replay buffer (as torch tensors)
             self.rb.append((np.vstack([s_transf, s_old_transf]), a, m, 
                 torch.tensor(r, dtype=torch.float32), 
-                np.vstack([s_next_transf, s_transf]),
-                torch.tensor(done, dtype=torch.bool)))
+                np.vstack([s_next_transf, s_transf])))
             # set next state as the new current state
             s_old = s
             s = s_next
