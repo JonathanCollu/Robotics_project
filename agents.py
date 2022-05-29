@@ -29,7 +29,7 @@ class PiCarX(object):
         self.area_max = (2, 2)
         # self.area_min = (-1.25, -1.25)
         # self.area_max = (1.25, 1.25)
-        self.pos_decimals = 3
+        self.pos_decimals = 1
         self.cuboids_num = cuboids_num
         self.cuboids_handles = []
         for i in range(cuboids_num):
@@ -157,6 +157,7 @@ class PiCarX(object):
         self.set_cuboids_pos()
         self.randomize_positions()
         self.stuck_steps = 0
+        self.last_cuboids_mask = None
 
     def min_border_dist(self, point):
         """ minimum distance between a point and the 4 borders
@@ -203,8 +204,6 @@ class PiCarX(object):
                     # print("cuboid", i, "changed")
                 # update stored cuboid position
                 self.cuboids[i] = pos
-        if not moved_cuboid:
-            r -= 0.1
 
         # compute reward based on the optimality of the cuboids mask in s_next
         # 8000 was obtained as the sum of the product of a near optimal cuboids mask and the
@@ -216,6 +215,10 @@ class PiCarX(object):
             last_r_cuboids_mask = (self.last_cuboids_mask * self.attention_mask).sum() / 8000
         r += r_cuboids_mask - last_r_cuboids_mask
         self.last_cuboids_mask = s_next[0]
+
+        if r_cuboids_mask == 0 and not moved_cuboid:
+            print("neg time rew")
+            r -= 0.1
         
         return r, cleaned_cuboid
 
@@ -273,11 +276,13 @@ class PiCarX(object):
         end_pos = [round(end_pos[0], self.pos_decimals), round(end_pos[1], self.pos_decimals)]
         if end_pos == start_pos:
             self.stuck_steps += 1
-            if self.stuck_steps >= 10:
+            if self.stuck_steps >= 5:
                 r -= 1
                 self.stuck_steps = 0
+                print("Agent stuck")
                 # self.avoid_stuck(max_v, duration)
                 done = True
+        else: self.stuck_steps = 0
 
         # check if agent moved outside of the area
         if not self.is_in_area(self.env.get_object_position(self.car_handle)):
