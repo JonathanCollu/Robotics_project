@@ -288,15 +288,15 @@ class PiCarX(object):
         if not self.is_in_area(self.env.get_object_position(self.car_handle)):
             r -= 1
             # done = True
-            force_backwards = False
-            if end_pos[0] < self.area_min[0]-0.25 or end_pos[0] > self.area_max[0]+0.25:
-                force_backwards = True
-            if end_pos[1] < self.area_min[1]-0.25 or end_pos[1] > self.area_max[1]+0.25:
-                force_backwards = True
-            if force_backwards:
-                self.change_velocity((-self.forward_vel[0], -self.forward_vel[1]))
-                time.sleep(duration)
-                self.change_velocity((0, 0))
+            # force_backwards = False
+            # if end_pos[0] < self.area_min[0]-0.25 or end_pos[0] > self.area_max[0]+0.25:
+            #     force_backwards = True
+            # if end_pos[1] < self.area_min[1]-0.25 or end_pos[1] > self.area_max[1]+0.25:
+            #     force_backwards = True
+            # if force_backwards:
+            #     self.change_velocity((-self.forward_vel[0], -self.forward_vel[1]))
+            #     time.sleep(duration)
+            #     self.change_velocity((0, 0))
 
         # check if task is done (all cuboids fell outside the area)
         if not done:
