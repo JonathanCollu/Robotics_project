@@ -149,19 +149,21 @@ class DQL:
                 # update target model weigths as current self.model weights
                 self.update_target()
             # Select action using the behaviour policy
-            s_transf_cuboids = self.agent.transform_mask(s.copy()[0])
-            s_transf_borders = cv2.resize(s.copy()[1], (120, 92), interpolation=cv2.INTER_LINEAR)
+            s_transf_cuboids = self.agent.transform_mask(s[0].copy())
+            s_transf_borders = cv2.resize(s[1].copy(), (120, 92), interpolation=cv2.INTER_LINEAR)
             s_transf = np.stack([s_transf_cuboids, s_transf_borders])
-            s_old_transf_cuboids = self.agent.transform_mask(s_old.copy()[0])
-            s_old_transf_borders = cv2.resize(s_old.copy()[1], (120, 92), interpolation=cv2.INTER_LINEAR)
+            s_old_transf_cuboids = self.agent.transform_mask(s_old[0].copy())
+            s_old_transf_borders = cv2.resize(s_old[1].copy(), (120, 92), interpolation=cv2.INTER_LINEAR)
             s_old_transf = np.stack([s_old_transf_cuboids, s_old_transf_borders])
             a = self.select_action(s_transf, s_old_transf)
             # Execute action in emulator and observe reward r and next state s_next
             s_next, r, done = self.agent.move(a.item())
             if done is None: done = False
             r_ep += r
-            s_next_transf = s_next.copy()
-            s_next_transf[0] = self.agent.transform_mask(s_next_transf[0])
+            # transform s_next before storing it
+            s_next_transf_cuboids = self.agent.transform_mask(s_next[0].copy())
+            s_next_transf_borders = cv2.resize(s_next[1].copy(), (120, 92), interpolation=cv2.INTER_LINEAR)
+            s_next_transf = np.stack([s_next_transf_cuboids, s_next_transf_borders])
             # add experience to replay buffer (as torch tensors)
             self.rb.append((torch.tensor(np.vstack([s_transf, s_old_transf])), a,
                 torch.tensor(r, dtype=torch.float32),

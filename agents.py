@@ -206,7 +206,8 @@ class PiCarX(object):
         # compute reward based on the optimality of the cuboids mask in s_next
         # 8000 was obtained as the sum of the product of a near optimal cuboids mask and the
         # attention mask => the fraction means how good the new mask is compared to a good one
-        r_cuboids_mask = (s_next[0] * self.attention_mask).sum() / 8000
+        cuboid_mask = self.transform_mask(s_next[0].copy())
+        r_cuboids_mask = (cuboid_mask * self.attention_mask).sum() / 8000
         if self.last_cuboids_mask is None:
             last_r_cuboids_mask = r_cuboids_mask
         else:
@@ -217,7 +218,7 @@ class PiCarX(object):
                 r += cub_mask_gain
             elif action in [0, 1, 2, 8, 9, 10]:  # if agent rotated without moving -> only negative gain
                 r += min(0, cub_mask_gain)
-        self.last_cuboids_mask = s_next[0]
+        self.last_cuboids_mask = cuboid_mask
 
         if r_cuboids_mask == 0 and not moved_cuboid:
             r -= 0.1
@@ -303,8 +304,6 @@ class PiCarX(object):
             mask /= mask.max()
         mask = cv2.resize(mask, (120, 92), interpolation=cv2.INTER_LINEAR)  # test
         mask = self.attention_mask * mask
-        print(mask.shape)
-        Image.fromarray((mask*255).astype(np.uint8)).save("test.png")
         return mask
 
     def act(self, trials):
