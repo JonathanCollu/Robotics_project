@@ -1,4 +1,4 @@
-from src.agents import PiCarX
+from src.agentR import PiCarX
 from src.Model import ConvPolicyNet
 import settings
 import time
@@ -22,19 +22,19 @@ if __name__ == "__main__":
     if args.cp_name is not None:
         state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
         for name, param in state_dict.items():
-            if "hidden_layers.1" in name or "hidden_layers.2" in name:
-                policy.load_state_dict({name: param}, strict=False)
+            # if "hidden_layers.1" in name or "hidden_layers.2" in name:
+            policy.load_state_dict({name: param}, strict=False)
     optimizer = torch.optim.Adam(policy.parameters(), lr=3e-4)
 
     value_net = ConvPolicyNet(value=True)
     if args.cp_name is not None:
         state_dict = torch.load(f"exp_results/{args.cp_name}_weights.pt")
         for name, param in state_dict.items():
-            if "hidden_layers.1" in name or "hidden_layers.2" in name:
-                value_net.load_state_dict({name: param}, strict=False)
+            # if "hidden_layers.1" in name or "hidden_layers.2" in name:
+            value_net.load_state_dict({name: param}, strict=False)
     optimizer_v = torch.optim.Adam(value_net.parameters(), lr=1e-3)
 
-    agent = PiCarX(policy, optimizer, value_net, optimizer_v, 10)
+    agent = PiCarX(policy, optimizer, value_net, optimizer_v, 20)
     
     try:
         agent.train(args.epochs, args.M, args.T, args.gamma, ef=args.ef, run_name=args.run_name)
