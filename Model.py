@@ -70,7 +70,7 @@ class ConvQNet(nn.Module):
         self.value = value
 
         self.hidden_layers = nn.Sequential(
-            nn.AvgPool2d(8),
+            # nn.AvgPool2d(8),
             nn.Conv2d(4, 8, kernel_size=6, stride=2),
             nn.Conv2d(8, 16, kernel_size=5, stride=1),
             nn.AvgPool2d(2),
@@ -78,9 +78,9 @@ class ConvQNet(nn.Module):
         )
 
         self.q_head = nn.Sequential(
-                nn.Linear(1536, 128),
+                nn.Linear(8640, 256),
                 nn.ReLU(),
-                nn.Linear(128, 11)
+                nn.Linear(256, 11)
         )
 
     def forward(self, x, device="cpu"):

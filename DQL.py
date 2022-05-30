@@ -3,7 +3,6 @@ import random
 import cv2
 import numpy as np
 import torch
-from torch.distributions import Bernoulli
 from copy import deepcopy
 from collections import deque
 from PIL import Image
@@ -74,7 +73,7 @@ class DQL:
             l, r = self.episode(epoch, reset=False)
             losses.append(l)
             rewards.append(r)
-            # print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
+            print(f"[{epoch+1}] Epoch mean loss: {round(l, 4)} | Epoch mean reward: {r}")
             if rewards[-1] >= best_ep:
                 best_ep = rewards[-1]
                 if self.run_name is not None:
@@ -150,13 +149,16 @@ class DQL:
                 # update target model weigths as current self.model weights
                 self.update_target()
             # Select action using the behaviour policy
-            s_transf = s.copy()
-            s_transf[0] = self.agent.transform_mask(s_transf[0])
-            s_old_transf = s_old.copy()
-            s_old_transf[0] = self.agent.transform_mask(s_old_transf[0])
+            s_transf_cuboids = self.agent.transform_mask(s.copy()[0])
+            s_transf_borders = cv2.resize(s.copy()[1], (120, 92), interpolation=cv2.INTER_LINEAR)
+            s_transf = np.stack([s_transf_cuboids, s_transf_borders])
+            s_old_transf_cuboids = self.agent.transform_mask(s_old.copy()[0])
+            s_old_transf_borders = cv2.resize(s_old.copy()[1], (120, 92), interpolation=cv2.INTER_LINEAR)
+            s_old_transf = np.stack([s_old_transf_cuboids, s_old_transf_borders])
             a = self.select_action(s_transf, s_old_transf)
             # Execute action in emulator and observe reward r and next state s_next
             s_next, r, done = self.agent.move(a.item())
+            if done is None: done = False
             r_ep += r
             s_next_transf = s_next.copy()
             s_next_transf[0] = self.agent.transform_mask(s_next_transf[0])
@@ -194,8 +196,8 @@ class DQL:
                 raise KeyError("Provide an epsilon")
 
             # annealing of epsilon
-            if self.epsilon.__class__.__name__ == "tuple":  # exponential annealing
-                epsilon = self.epsilon[0] + (self.epsilon[1] - self.epsilon[0]) * np.exp(-1. * self.ts_tot / self.epsilon[2])
+            if self.epsilon.__class__.__name__ == "tuple":  # linear annealing
+                epsilon = self.epsilon[0] + (self.epsilon[1] - self.epsilon[0]) * (1 - self.ts_tot / self.epsilon[2])
             else:  # no annealing
                 epsilon = self.epsilon
             # Randomly generate a value between [0,1] with a uniform distribution

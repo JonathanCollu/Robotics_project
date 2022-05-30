@@ -36,8 +36,8 @@ class PiCarX(object):
         self.last_cuboids_mask = None
 
         # compute attention mask
-        attention_center = np.ones((368, 480))
-        attention_center[367, int(479*0.5)] = attention_center[367, int(479*0.5)+1] = 0
+        attention_center = np.ones((92, 120))
+        attention_center[int(91*0.98), int(119*0.5)] = attention_center[int(91*0.98), int(119*0.5)+1] = 0
         self.attention_mask = cv2.distanceTransform((attention_center*255).astype(np.uint8), cv2.DIST_L2, 3)
         self.attention_mask /= self.attention_mask.max()
         self.attention_mask = 1 - self.attention_mask
@@ -301,7 +301,11 @@ class PiCarX(object):
         mask = cv2.distanceTransform((mask*255).astype(np.uint8), cv2.DIST_L2, 3)
         if mask.max() != 0:
             mask /= mask.max()
-        return self.attention_mask * mask
+        mask = cv2.resize(mask, (120, 92), interpolation=cv2.INTER_LINEAR)  # test
+        mask = self.attention_mask * mask
+        print(mask.shape)
+        Image.fromarray((mask*255).astype(np.uint8)).save("test.png")
+        return mask
 
     def act(self, trials):
         self.start_sim(connect=False)
