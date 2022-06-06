@@ -13,7 +13,7 @@ args = parser.parse_args()
 def main():
     print("Starting")
     policy = Policy()
-    state_dict = torch.load(args.parameters)
+    state_dict = torch.load(f"weights/" + args.parameters)
     policy.load_state_dict(state_dict)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 4242))
