@@ -1,45 +1,34 @@
 from PIL import Image
 import sys
 import cv2
-import time
 import numpy as np
 from PIL import Image
 from copy import deepcopy
+from picamera import PiCamera
 
 np.set_printoptions(threshold=sys.maxsize)
 
 
 def color_detect(img, color_name):
     # here is the range of H in the HSV color space represented by the color
-    # color_dict = {'red':[0,4],'orange':[5,18],'yellow':[22,37],'green':[42,85],'blue':[92,110],'purple':[115,165],'red_2':[165,180]}
     color_dict = {'red_1': [0, 10], 'orange': [11, 28], 'yellow': [29, 34], 'green': [
-        35, 85], 'blue': [86, 130], 'purple': [131, 155], 'red_2': [156, 180]}
+        25, 90], 'blue': [86, 130], 'purple': [131, 155], 'red_2': [156, 180]}
 
     # define a 5×5 convolution kernel with element values of all 1.
     kernel_5 = np.ones((5, 5), np.uint8)
 
     # the blue range will be different under different lighting conditions and can be adjusted flexibly.
     # H: chroma, S: saturation v: lightness
-    # cv2.imshow("video", img)
 
     # in order to reduce the amount of calculation, the size of the picture is reduced to (160,120)
-    #resize_img = cv2.resize(img, (160,120), interpolation=cv2.INTER_LINEAR)
     resize_img = img
 
-    # try:
-    # convert from BGR to HSV
-    hsv = cv2.cvtColor(resize_img, cv2.COLOR_BGR2HSV)
-    # except:
-    #    rgb = cv2.cvtColor(resize_img, cv2.COLOR_GRAY2BGR)
-    #    hsv = cv2.cvtColor(rgb, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(resize_img, cv2.COLOR_BGR2HSV)  # convert from BGR to HS
     color_type = color_name
 
     # inRange()：Make the ones between lower/upper white, and the rest black
     mask = cv2.inRange(hsv, np.array([min(color_dict[color_type]), 60, 60]), np.array(
         [max(color_dict[color_type]), 255, 255]))
-    # if color_type == 'red':
-    #         mask_2 = cv2.inRange(hsv, (color_dict['red_2'][0],0,0), (color_dict['red_2'][1],255,255))
-    #         mask = cv2.bitwise_or(mask, mask_2)
 
     # perform an open operation on the image
     morphologyEx_img = cv2.morphologyEx(
@@ -64,22 +53,11 @@ def color_detect(img, color_name):
 
             # Draw a rectangle on the image (picture, upper left corner coordinate, lower right corner coordinate, color, line width)
             if w >= 1 and h >= 1:
-                # if w >= 1 and h >= 1:
-                """
-                    Because the picture is reduced to a quarter of the original size, 
-                    if you want to draw a rectangle on the original picture to circle 
-                    the target, you have to multiply x, y, w, h by 4.
-                """
-                #x = x * 4
-                #y = y * 4
-                #w = w * 4
-                #h = h * 4
                 try:
                     # Draw a rectangular frame
                     cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 except:
                     pass
-                # cv2.putText(img,color_type,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),2)  # Add character description
 
     return img, mask, morphologyEx_img
 
@@ -94,7 +72,6 @@ def interpret_image(ball_color, border_color, image):
     Image.fromarray(np.array(border_mask * 255, dtype=np.uint8)
                     ).save('test_border.png')
     mask = np.stack([ball_mask, border_mask])
-    # composite_image = ball_mask + 2 * border_mask
     return mask
 
 
@@ -105,7 +82,6 @@ def border_is_too_close(border_mask):
     noiseless_img = np.uint8(noiseless_img)
     noiseless_img = cv2.Canny(noiseless_img, 1, 100)
     noiseless_img = cv2.fastNlMeansDenoising(noiseless_img, h=20)
-    # print(noiseless_img)
     cv2.imwrite("noiseless_border_mask.png", noiseless_img)
     border_bottom = -1
     i = 0
@@ -124,11 +100,16 @@ def border_is_too_close(border_mask):
 
 
 if __name__ == "__main__":
-    src_img = cv2.imread('img-1.png')
+    camera = PiCamera()
+    camera.resolution = (480, 368)
+    camera.framerate = 24
+    camera.start_preview()
+    img = np.empty((480 * 368 * 3,), dtype=np.uint8)
+    camera.capture(img, 'rgb')
+    src_img = img.reshape((368, 480, 3))
 
-    mask = interpret_image("green", "red", src_img)
+    mask = interpret_image("green", "purple", src_img)
     print(mask.shape)
-    # print(list(set(i for j in ball_mask for i in j)))
 
     ball_mask = np.array(mask[0] * 255, dtype=np.uint8)
     cv2.imwrite("ball_mask.png", ball_mask)

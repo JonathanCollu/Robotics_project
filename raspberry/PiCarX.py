@@ -3,12 +3,9 @@ import cv2
 import socket
 import pickle
 import numpy as np
-from PIL import Image
 import picar_4wd as fc
-#from picarx import Picarx
 from picamera import PiCamera
-from io import BytesIO
-from color_detection import interpret_image, border_is_too_close
+from color_detection import interpret_image
 
 
 class PiCarX():
@@ -16,7 +13,7 @@ class PiCarX():
         #self.px = Picarx()
         self.angular_velocity = 0  # Pay attention: with Picarx, this is the motor power
         self.angle = 0  # Pay attention: not in radians
-        self.forward_vel = 10
+        self.forward_vel = 20
         self.camera = PiCamera()
         self.camera.resolution = (480, 368)
         self.camera.framerate = 24
@@ -59,33 +56,38 @@ class PiCarX():
         return self.socket.recv(1024).decode().split(";")
 
     def move(self, movement, angle):
+        if movement == 0 and angle == 3:
+            fc.forward(self.forward_vel)
+            time.sleep(0.5)
+            fc.stop()
+
         if angle == 0:
-            fc.turn_left(10)
+            fc.turn_left(self.forward_vel)
             time.sleep(1.1)
             fc.stop()
         elif angle == 1:
-            fc.turn_left(10)
+            fc.turn_left(self.forward_vel)
             time.sleep(1.1/90*14)
             fc.stop()
         elif angle == 2:
-            fc.turn_left(10)
+            fc.turn_left(self.forward_vel)
             time.sleep(1.1/90*7)
             fc.stop()
         elif angle == 4:
-            fc.turn_right(10)
+            fc.turn_right(self.forward_vel)
             time.sleep(1.1/90*7)
             fc.stop()
         elif angle == 5:
-            fc.turn_right(10)
+            fc.turn_right(self.forward_vel)
             time.sleep(1.1/90*14)
             fc.stop()
         elif angle == 6:
-            fc.turn_right(10)
+            fc.turn_right(self.forward_vel)
             time.sleep(1.1)
             fc.stop()
 
         if movement:
-            fc.forward(10)
+            fc.forward(self.forward_vel)
             time.sleep(0.5)
             fc.stop()
 
@@ -95,18 +97,16 @@ class PiCarX():
             if self.stop_if_done():
                 break
             s = self.detect_objects()
-            go_backwards = border_is_too_close(s[1])
-            print(go_backwards)
-            if go_backwards:
-                fc.backward(10)
-                time.sleep(2)
-                fc.stop()
-            else:
-                out = self.request_action(np.vstack((s, s_old)))
-                print(out)
-                m = int(out[0])
-                a = int(out[1])
-                self.move(m, a)
+
+            ball_mask = np.array(s[0] * 255, dtype=np.uint8)
+            cv2.imwrite("ball_mask.png", ball_mask)
+            border_mask = np.array(s[1] * 255, dtype=np.uint8)
+            cv2.imwrite("border_mask.png", border_mask)
+            out = self.request_action(np.vstack((s, s_old)))
+            print(out)
+            m = int(out[0])
+            a = int(out[1])
+            self.move(m, a)
             s_old = s
         self.socket.send(np.zeros(0).tobytes())
         self.socket.close()
