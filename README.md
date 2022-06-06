@@ -7,6 +7,9 @@ This repository is divided into three different branches containing all the nece
 <li> -object_detection: identify objects in the environment through color detection </li>
 </ul>
 
+## Authors
+<a href="https://github.com/JonathanCollu">Jonathan Collu</a>, <a href="https://github.com/riccardomajellaro">Riccardo Majellaro</a>, <a href="https://github.com/IrinaMonaEpure">Irina Mona Epure</a>, <a href="https://github.com/diegobc11">Diego Barreiro</a> and <a href="https://github.com/jorgie007">Ayodele Adetunji</a>
+
 # Requirements
  To run the available scripts and algorithm configurations, a `Python 3` environment is required, together with the required packages, specified in the `requirements.txt` file, in the main directory. In order to install the requirements, run the following command from the main directory: 
  
