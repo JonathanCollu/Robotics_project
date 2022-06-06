@@ -1,3 +1,4 @@
+# TrashAway Robot
 This repository is divided into three different branches containing all the necessary material to:
 
 <ul>
@@ -15,7 +16,7 @@ This repository is divided into three different branches containing all the nece
 
 # How to upload files on the PiCar-X robot
 
-All the experiments presented in the report are fully repruducible by running the following command from the main folder of the repository:
+Run the following command from the main branch main directory
 
 ```
 ./upload_file.sh <IP address of the picar> <local filepath>
@@ -28,7 +29,6 @@ the training parameters can be changed in the script
 # How to evaluate a configuration
 Run the command below from the RL branch main directory
 `python evaluate.py -w <your_weights.pt>`
-along with the following arguments:
 
 # How to run the task in the real world
 From the main branch main directory run the command:
