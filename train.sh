@@ -1,6 +1,6 @@
 python start.py
 sleep 5
-python runR.py \
+python run.py \
 -run_name  \ # choose the name of the weights to be saved  
 -cp_name  \ # load weights (if None train from random initialization)
 -epochs 1000 \
