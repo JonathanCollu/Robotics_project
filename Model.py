@@ -1,9 +1,15 @@
 from torch import nn
 import torch
 
+<<<<<<< HEAD
 
 class PolicyNet(nn.Module):
     """ Neural network acting as policy function for the robot
+=======
+class ConvPolicyNet(nn.Module):
+    """ TODO: FIX DESCRIPTION
+        Neural network acting as policy function for the robot
+>>>>>>> RL
         agent. The input of the net are two binary maps, where 1s
         indicate that an object/a border is present in those
         locations (relatively to the original image), and 0s are
@@ -13,6 +19,7 @@ class PolicyNet(nn.Module):
         other representing the trajectory angle in [0, 180] as a
         classification problem using the softmax function.
     """
+<<<<<<< HEAD
 
     def __init__(self):
         super(PolicyNet, self).__init__()
@@ -89,6 +96,8 @@ class ConvPolicyNet(nn.Module):
     """ TODO: add description
     """
 
+=======
+>>>>>>> RL
     def __init__(self, value=False):
         super(ConvPolicyNet, self).__init__()
         self.value = value
@@ -120,7 +129,10 @@ class ConvPolicyNet(nn.Module):
 
     def forward(self, x, device="cpu"):
         x = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
+<<<<<<< HEAD
         print('x shape', x.shape)
+=======
+>>>>>>> RL
         hidden = self.hidden_layers(x)
         if not self.value:
             movement = self.movement_head(hidden)
@@ -128,3 +140,42 @@ class ConvPolicyNet(nn.Module):
             return movement, angle
         else:
             return self.value_head(hidden)[0]
+<<<<<<< HEAD
+=======
+
+
+class ConvQNet(nn.Module):
+    """ TODO: FIX DESCRIPTION
+        Neural network acting as Q-value function for the robot
+        agent. The input of the net are two binary maps, where 1s
+        indicate that an object/a border is present in those
+        locations (relatively to the original image), and 0s are
+        assigned to non interesting locations. There are two output
+        heads, one with a single sigmoid-activated node indicating
+        wether the robot has to move forward or stay still, and the
+        other representing the trajectory angle in [0, 180] as a
+        classification problem using the softmax function.
+    """
+    def __init__(self, value=False):
+        super(ConvQNet, self).__init__()
+        self.value = value
+
+        self.hidden_layers = nn.Sequential(
+            # nn.AvgPool2d(8),
+            nn.Conv2d(4, 8, kernel_size=6, stride=2),
+            nn.Conv2d(8, 16, kernel_size=5, stride=1),
+            nn.AvgPool2d(2),
+            nn.Flatten()
+        )
+
+        self.q_head = nn.Sequential(
+                nn.Linear(8640, 256),
+                nn.ReLU(),
+                nn.Linear(256, 11)
+        )
+
+    def forward(self, x, device="cpu"):
+        x = x.to(device)
+        hidden = self.hidden_layers(x)
+        return self.q_head(hidden)
+>>>>>>> RL
