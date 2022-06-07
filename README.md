@@ -18,7 +18,7 @@ Run the following command from the main directory
 ```
 
 # How to train an agent
-For the training on the simulation it is necessary to copy the following files in the CoppeliaSim `src` directory: `Model.py`, `Reinforce.py`, `agent.py`, `color_detection.py` and `env.py`. The files `start.py` and `run.py` must be copied in the CoppeliaSim main folder `./train.sh`.
+For the training on the simulation it is necessary to copy the following files in the CoppeliaSim `src` directory: `Model.py`, `Reinforce.py`, `agent.py`, `color_detection.py` and `env.py`. The files `start.py` and `run.py` must be copied in the CoppeliaSim main folder.
 Run the command below from the main directory
 ```
 python run.py -run_name <run_name> -cp_name <checkpoint_name> -epochs <epochs_num> -M <traces_per_epoch> -T <trace_len> -gamma <discount>
