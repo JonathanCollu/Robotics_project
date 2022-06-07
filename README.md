@@ -1,5 +1,5 @@
 # TrashAway Robot
-This repository contains all the necessary material to train a PiCar-X to perform the task of "cleaning" a squared environment from cubes.
+This repository contains all the necessary material to train a PiCar-X to perform the task of "cleaning" a squared environment from cubes. The training of the agent is performed using Deep Reinforcement Learning on a simulated CoppeliaSim environment.
 
 ## Authors
 <a href="https://github.com/JonathanCollu">Jonathan Collu</a>, <a href="https://github.com/riccardomajellaro">Riccardo Majellaro</a>, <a href="https://github.com/IrinaMonaEpure">Irina Mona Epure</a>, <a href="https://github.com/diegobc11">Diego Barreiro</a> and <a href="https://github.com/jorgie007">Ayodele Adetunji</a>
@@ -23,6 +23,7 @@ Run the command below from the main directory
 ```
 python run.py -run_name <run_name> -cp_name <checkpoint_name> -epochs <epochs_num> -M <traces_per_epoch> -T <trace_len> -gamma <discount>
 ```
+An example is shown in `train.sh`.
 
 # How to evaluate a trained agent
 Run the command below from the main directory
