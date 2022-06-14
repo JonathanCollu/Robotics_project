@@ -125,7 +125,7 @@ class Reinforce():
                 
                 loss += (R - v) * (loss_m + loss_a)
                 if self.entropy_factor is not None:
-                    loss += self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy())
+                    loss -= self.entropy_factor * (h0[t][3][0].entropy()[0] + h0[t][3][1].entropy())
         loss /= self.M
         loss_v /= self.M
         reward /= self.M
