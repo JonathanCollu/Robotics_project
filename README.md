@@ -2,7 +2,7 @@
 This repository contains all the necessary material to train a PiCar-X to perform the task of "cleaning" a squared environment from cubes. The training of the agent is performed using Deep Reinforcement Learning on a simulated CoppeliaSim environment.
 
 ## Authors
-<a href="https://github.com/JonathanCollu">Jonathan Collu</a>, <a href="https://github.com/riccardomajellaro">Riccardo Majellaro</a>, <a href="https://github.com/IrinaMonaEpure">Irina Mona Epure</a>, <a href="https://github.com/diegobc11">Diego Barreiro</a> and <a href="https://github.com/jorgie007">Ayodele Adetunji</a>
+<a href="https://github.com/JonathanCollu">Jonathan Collu</a>\*, <a href="https://github.com/riccardomajellaro">Riccardo Majellaro</a>\*, <a href="https://github.com/IrinaMonaEpure">Irina Mona Epure</a>, <a href="https://github.com/diegobc11">Diego Barreiro</a> and <a href="https://github.com/jorgie007">Ayodele Adetunji</a>
 
 # Requirements
  To run these scripts, a `Python 3` environment is required, together with the necessary packages specified in the `requirements.txt` file. In order to install the requirements, run the following command from the main directory:
